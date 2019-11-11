@@ -13,17 +13,7 @@ pub enum Command {
     LoopEnd,
 }
 
-#[derive(Debug)]
-struct State {
-    // data_cells: Vec<u8>,
-    data_cells: [u8; 32],
-    data_ptr: usize, // u64,  # usize length (32, 64) is platform-dependent
-    loop_stack: Vec<usize>,
-    program_ptr: usize,
-}
-
-// pub fn decode_command(command: Command) -> &'static str {
-pub fn decode_command(command: Command) -> char {
+pub fn encode_command(command: Command) -> char {
     match command {
         Command::PtrInc => '>',
         Command::PtrDec => '<',
@@ -36,7 +26,7 @@ pub fn decode_command(command: Command) -> char {
     }
 }
 
-pub fn encode_command(c: char) -> Result<Command, String> {
+pub fn decode_command(c: char) -> Result<Command, String> {
     match c {
         '>' => Ok(Command::PtrInc),
         '<' => Ok(Command::PtrDec),
@@ -52,40 +42,91 @@ pub fn encode_command(c: char) -> Result<Command, String> {
 
 impl fmt::Display for Command {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result  {
-        write!(f, "{}", decode_command(*self))
+        write!(f, "{}", encode_command(*self))
     }
 }
 
-pub fn run_program(program: &str) {
+#[derive(Debug)]
+struct State {
+    data: Vec<u8>,
+    data_ptr: usize,
+    program: Vec<Command>,
+    program_ptr: usize,
+    loop_stack: Vec<usize>,
+}
+
+pub fn run_interpreter(program: &str) -> Result<String, String> {
+    const HEAP_SIZE: usize = 100;
     let mut state = State {
-        // data_cells: vec![0],
-        data_cells: [0; 32],
-        data_ptr: 16,
-        loop_stack: vec![],
+        data: Vec::with_capacity(HEAP_SIZE),
+        data_ptr: HEAP_SIZE / 2,
+        program: vec![],
         program_ptr: 0,
+        loop_stack: vec![],
     };
-    while state.program_ptr < program.len() {
-        let c = program.chars().nth(state.program_ptr).unwrap();
-        println!("executing: {:?}\tstate: {:?}", c, state);
-        match encode_command(c) {
-            // Ok(command) => run_command(&mut state, command),
-            Ok(Command::PtrInc) => pointer_increment(&mut state),
-            Ok(Command::PtrDec) => pointer_decrement(&mut state),
-            Ok(Command::ValInc) => value_increment(&mut state),
-            Ok(Command::ValDec) => value_decrement(&mut state),
-            Ok(Command::PutChar) => put_character(&mut state),
-            Ok(Command::GetChar) => get_character(&mut state),
-            Ok(Command::LoopBeg) => loop_enter(&mut state, program),
-            Ok(Command::LoopEnd) => loop_exit(&mut state),
-            Err(message) => panic!(message),
-        };
+    state.data.resize(HEAP_SIZE, 0); // probably not the right way to initialize
+    parse_program(program).and_then(|prog| {
+        state.program = prog;
+        run_program(&mut state)
+    })
+}
+
+fn parse_program(program: &str) -> Result<Vec<Command>, String> {
+    program
+        .chars()
+        .map(|c| decode_command(c))
+        .collect()
+}
+
+fn run_program(state: &mut State) -> Result<String, String> {
+    eprintln!("{:?}", state);
+    // TODO: surely there is a better way to structure this main control flow
+    match state.program.get(state.program_ptr) {
+        Some(Command::PtrInc) => {
+            state.data_ptr += 1;
+            state.program_ptr += 1;
+            run_program(state)
+        },
+        Some(Command::PtrDec) => {
+            state.data_ptr -= 1;
+            state.program_ptr += 1;
+            run_program(state)
+        },
+        Some(Command::ValInc) => {
+            state.data[state.data_ptr] += 1;
+            state.program_ptr += 1;
+            run_program(state)
+        },
+        Some(Command::ValDec) => {
+            state.data[state.data_ptr] -= 1;
+            state.program_ptr += 1;
+            run_program(state)
+        },
+        Some(Command::PutChar) => {
+            print!("{}", state.data[state.data_ptr]);
+            state.program_ptr += 1;
+            run_program(state)
+        },
+        Some(Command::GetChar) => {
+            get_character(state);
+            run_program(state)
+        },
+        Some(Command::LoopBeg) => {
+            loop_enter(state);
+            run_program(state)
+        },
+        Some(Command::LoopEnd) => {
+            loop_exit(state);
+            run_program(state)
+        },
+        None => Ok("success".to_string()),
     }
 }
 
 /*
 fn run_command(state: &mut State, cmd: Command) {
     match cmd {
-        Command::PtrInc => state.ptr += 1,
+        Command::PtrInc => stateptr += 1,
         Command::PtrDec => state.ptr -= 1,
         Command::ValInc =>
         _ => panic!("unsupported command: {}", cmd),
@@ -93,6 +134,7 @@ fn run_command(state: &mut State, cmd: Command) {
 }
 */
 
+/*
 fn pointer_increment(state: &mut State) {
     state.data_ptr += 1;
     state.program_ptr += 1;
@@ -129,6 +171,7 @@ fn put_character(state: &mut State) {
     print!("{}", state.data_cells[state.data_ptr]);
     state.program_ptr += 1;
 }
+*/
 
 fn get_character(state: &mut State) {
     // TODO: inspect this copypasta
@@ -138,12 +181,13 @@ fn get_character(state: &mut State) {
         .and_then(|result| result.ok())
         .map(|byte| byte as u8);
     match input {
-        Some(c) => state.data_cells[state.data_ptr] = c,
+        Some(c) => state.data[state.data_ptr] = c,
         None => panic!("bf error: failed to read"),
     }
     state.program_ptr += 1;
 }
 
+/*
 fn find_loop_end(ptr: usize, program: &str) -> usize {
     match program.chars().nth(ptr) {
     }
@@ -154,7 +198,9 @@ fn find_loop_end(ptr: usize, program: &str) -> usize {
         Err(msg) => panic!(message),
     }
 }
+*/
 
+/*
 fn loop_enter(state: &mut State, program: &str) {
     state.loop_stack.push(state.program_ptr);
     match state.data_cells[state.data_ptr] {
@@ -182,6 +228,9 @@ fn loop_enter(state: &mut State, program: &str) {
         _ => {}
     }
 }
+*/
+
+fn loop_enter(state: &mut State) {}
 
 fn loop_exit(state: &mut State) {
     match state.loop_stack.pop() {
