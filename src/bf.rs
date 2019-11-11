@@ -79,99 +79,54 @@ fn parse_program(program: &str) -> Result<Vec<Command>, String> {
 }
 
 fn run_program(state: &mut State) -> Result<String, String> {
-    eprintln!("{:?}", state);
     // TODO: surely there is a better way to structure this main control flow
-    match state.program.get(state.program_ptr) {
-        Some(Command::PtrInc) => {
-            state.data_ptr += 1;
-            state.program_ptr += 1;
-            run_program(state)
-        },
-        Some(Command::PtrDec) => {
-            state.data_ptr -= 1;
-            state.program_ptr += 1;
-            run_program(state)
-        },
-        Some(Command::ValInc) => {
-            state.data[state.data_ptr] += 1;
-            state.program_ptr += 1;
-            run_program(state)
-        },
-        Some(Command::ValDec) => {
-            state.data[state.data_ptr] -= 1;
-            state.program_ptr += 1;
-            run_program(state)
-        },
-        Some(Command::PutChar) => {
-            print!("{}", state.data[state.data_ptr]);
-            state.program_ptr += 1;
-            run_program(state)
-        },
-        Some(Command::GetChar) => {
-            get_character(state);
-            run_program(state)
-        },
-        Some(Command::LoopBeg) => {
-            loop_enter(state);
-            run_program(state)
-        },
-        Some(Command::LoopEnd) => {
-            loop_exit(state);
-            run_program(state)
-        },
-        None => Ok("success".to_string()),
-    }
+    loop {
+        eprintln!("{:?}", state);
+        match state.program.get(state.program_ptr) {
+            Some(Command::PtrInc) => pointer_increment(state),
+            Some(Command::PtrDec) => pointer_decrement(state),
+            Some(Command::ValInc) => value_increment(state),
+            Some(Command::ValDec) => value_decrement(state),
+            Some(Command::PutChar) => print!("{}", state.data[state.data_ptr]),
+            Some(Command::GetChar) => get_character(state),
+            Some(Command::LoopBeg) => loop_enter(state),
+            Some(Command::LoopEnd) => loop_exit(state),
+            None => break,
+        };
+        state.program_ptr += 1;
+    };
+    Ok("success".to_string())
 }
 
-/*
-fn run_command(state: &mut State, cmd: Command) {
-    match cmd {
-        Command::PtrInc => stateptr += 1,
-        Command::PtrDec => state.ptr -= 1,
-        Command::ValInc =>
-        _ => panic!("unsupported command: {}", cmd),
-    }
-}
-*/
-
-/*
 fn pointer_increment(state: &mut State) {
     state.data_ptr += 1;
-    state.program_ptr += 1;
-    /*
-    if state.data_cells.len() == state.data_ptr {
-        state.data_cells.push(0);
+    /* TODO: implement bounds checks
+    match state.data_ptr {
+        0 => panic!("bf error: segfault (below beginning)"),
+        i if i > state.data.len() => panic!("bf error: segfault (past end)"),
+        _ => match amount {
+            a if a < 0 => state.data_ptr -= usize::from(-a),
+            a => state.data_ptr += usize::from(a),
+        }
     }
     */
 }
 
 fn pointer_decrement(state: &mut State) {
-    match state.data_ptr {
-        0 => panic!("bf error: segfault"),
-        _ => state.data_ptr -= 1,
-    }
-    state.program_ptr += 1;
+    state.data_ptr -= 1;
 }
 
 fn value_increment(state: &mut State) {
-    match state.data_cells[state.data_ptr].overflowing_add(1) {
-        (v, _) => state.data_cells[state.data_ptr] = v,
+    match state.data[state.data_ptr].overflowing_add(1) {
+        (v, _) => state.data[state.data_ptr] = v,
     }
-    state.program_ptr += 1;
 }
 
 fn value_decrement(state: &mut State) {
-    match state.data_cells[state.data_ptr].overflowing_sub(1) {
-        (v, _) => state.data_cells[state.data_ptr] = v,
+    match state.data[state.data_ptr].overflowing_sub(1) {
+        (v, _) => state.data[state.data_ptr] = v,
     }
-    state.program_ptr += 1;
 }
-
-fn put_character(state: &mut State) {
-    print!("{}", state.data_cells[state.data_ptr]);
-    state.program_ptr += 1;
-}
-*/
 
 fn get_character(state: &mut State) {
     // TODO: inspect this copypasta
@@ -184,57 +139,28 @@ fn get_character(state: &mut State) {
         Some(c) => state.data[state.data_ptr] = c,
         None => panic!("bf error: failed to read"),
     }
-    state.program_ptr += 1;
 }
 
-/*
-fn find_loop_end(ptr: usize, program: &str) -> usize {
-    match program.chars().nth(ptr) {
-    }
-    match decode_command(program.chars().nth(ptr).unwrap()) {
-        Ok(Command::LoopEnd) -> ptr,
-        Ok(Command::LoopBegin) -> find_loop_end(
-        Ok(_) -> find_loop_end(ptr + 1)
-        Err(msg) => panic!(message),
+fn find_loop_end(ptr: usize, program: &Vec<Command>) -> usize {
+    match program.get(ptr) {
+        Some(Command::LoopEnd) => ptr,
+        Some(Command::LoopBeg) => find_loop_end(find_loop_end(ptr + 1, program), program),
+        Some(_) => find_loop_end(ptr + 1, program),
+        None => panic!(""),
     }
 }
-*/
 
-/*
-fn loop_enter(state: &mut State, program: &str) {
-    state.loop_stack.push(state.program_ptr);
-    match state.data_cells[state.data_ptr] {
-        0 => {
-            // TODO: fp-ify
-            // scan for corresponding loop_exit command
-            let mut n: u64 = 0;
-            let mut scan_ptr: usize = state.program_ptr + 1;
-            println!("{:?}", state);
-            loop {
-                match (n, encode_command(program.chars().nth(scan_ptr).unwrap())) {
-                    (_, Err(message)) => panic!(message),
-                    (0, Ok(Command::LoopEnd)) => {
-                        state.loop_stack.pop();
-                        state.program_ptr = scan_ptr + 1;
-                        break;
-                    },
-                    (_, Ok(Command::LoopBeg)) => n += 1,
-                    (_, Ok(Command::LoopEnd)) => n -= 1,
-                    (_, _) => {},
-                }
-                scan_ptr += 1;
-            }
-        }
-        _ => {}
+fn loop_enter(state: &mut State) {
+    match state.data[state.data_ptr] {
+        0 => state.program_ptr = find_loop_end(state.program_ptr + 1, &state.program),
+        _ => state.loop_stack.push(state.program_ptr),
     }
 }
-*/
-
-fn loop_enter(state: &mut State) {}
 
 fn loop_exit(state: &mut State) {
     match state.loop_stack.pop() {
-        Some(ptr_loc) => state.program_ptr = ptr_loc,
+        // account for the fact that the program pointer is going to be incremented
+        Some(ptr_loc) => state.program_ptr = ptr_loc - 1,
         None => panic!("bf error: ']' missing corresponding '['"),
     }
 }
