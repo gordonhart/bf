@@ -1,0 +1,35 @@
+# Brainfuck Interpreter
+The secondary purpose of this project is to implement an interpreter for the
+[Brainfuck programming language](https://en.wikipedia.org/wiki/Brainfuck) with
+a few extensions. The primary purpose is to learn Rust.
+
+## Usage
+The interpreter can be compiled and run:
+```
+$ cargo run <program>
+```
+Or compiled first then run:
+```
+$ cargo build --release
+$ ./target/release/bf <program>
+```
+
+## Goals
+- No `panic!`
+- Idiomatic language usage
+- Correct BF implementation
+- Standard command line niceties:
+    - Option to run program from argument
+    - Option to run program from file
+    - Option to run program from stdin
+    - Proper exit code setting
+    - Expected options like `--help`
+- Reasonable performance and resource usage (nothing dumb)
+
+## Example Programs
+1. `hello world`: `+[-[<<[+[--->]-[<<<]]]>>>-]>-.---.>..>.<<<<-.<+.>>>>>.>.<<.<-.`
+2. `Hello World!`: `++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++.`
+3. `Hello World!`: `'>++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<+++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------------.>>.+++.------.--------.>+.>+.'`
+4. `Hello, World!`: `+[-->-[>>+>-----<<]<--<---]>-.>>>+.>>..+++[.>]<<<<.+++.------.<<-.>>>>+.`
+5. `cat` implementation: `,[.[-],]`
+    - Example: `$ ./bf ',[.[-],]' < README.md`

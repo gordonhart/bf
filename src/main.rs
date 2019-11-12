@@ -3,15 +3,34 @@ use std::env;
 mod bf;
 
 fn main() {
-    let err_str = "usage: bf <program>";
+    let err_str: &'static str = "usage: bf <program>";
     let args: Vec<String> = env::args().collect();
     // assert_eq!(args.len(), 2);
-    match &args[..] {
-        [_, program] => match bf::run_interpreter(program) {
-            Ok(message) => println!("bf interpreter exiting: {}", message),
-            Err(message) => eprintln!("bf interpreter exiting: {}", message),
+    std::process::exit(match &args[..] {
+        [_, program] => {
+            let state = bf::run_interpreter(program);
+            match state.status {
+                bf::ExecutionStatus::Terminated => {
+                    eprintln!("bf interpreter terminated: 0");
+                    0
+                },
+                bf::ExecutionStatus::Error(err) => {
+                    eprintln!("bf interpreter exited with error: {}", err);
+                    1
+                },
+                _ => {
+                    eprintln!("{:?}", state);
+                    1
+                },
+            }
         },
-        [_] => eprintln!("missing program\n{}", err_str),
-        _ => eprintln!("too many arguments\n{}", err_str),
-    }
+        [_] => {
+            eprintln!("{}", err_str);
+            0
+        },
+        _ => {
+            eprintln!("{}", err_str);
+            0
+        },
+    });
 }

@@ -11,6 +11,8 @@ pub enum Command {
     GetChar,
     LoopBeg,
     LoopEnd,
+    DebugDump,
+    DebugBreakpoint,
 }
 
 pub fn encode_command(command: Command) -> char {
@@ -23,6 +25,8 @@ pub fn encode_command(command: Command) -> char {
         Command::GetChar => ',',
         Command::LoopBeg => '[',
         Command::LoopEnd => ']',
+        Command::DebugDump => '?',
+        Command::DebugBreakpoint => '!',
     }
 }
 
@@ -36,6 +40,8 @@ pub fn decode_command(c: char) -> Result<Command, String> {
         ',' => Ok(Command::GetChar),
         '[' => Ok(Command::LoopBeg),
         ']' => Ok(Command::LoopEnd),
+        '?' => Ok(Command::DebugDump),
+        '!' => Ok(Command::DebugBreakpoint),
         other => Err(format!("unsupported character: {}", other)),
     }
 }
@@ -47,28 +53,41 @@ impl fmt::Display for Command {
 }
 
 #[derive(Debug)]
-struct State {
-    data: Vec<u8>,
-    data_ptr: usize,
-    program: Vec<Command>,
-    program_ptr: usize,
-    loop_stack: Vec<usize>,
+pub enum ExecutionStatus<T> {
+    NotStarted,
+    InProgress,
+    Terminated,
+    Error(T),
 }
 
-pub fn run_interpreter(program: &str) -> Result<String, String> {
+#[derive(Debug)]
+pub struct State {
+    pub data: Vec<u8>,
+    pub data_ptr: usize,
+    pub program: Vec<Command>,
+    pub program_ptr: usize,
+    pub loop_stack: Vec<usize>,
+    pub status: ExecutionStatus<String>,
+}
+
+pub fn run_interpreter(program: &str) -> State {
     const HEAP_SIZE: usize = 100;
     let mut state = State {
-        data: Vec::with_capacity(HEAP_SIZE),
-        data_ptr: HEAP_SIZE / 2,
+        data: vec![0], // Vec::with_capacity(HEAP_SIZE),
+        data_ptr: 0,
         program: vec![],
         program_ptr: 0,
         loop_stack: vec![],
+        status: ExecutionStatus::NotStarted,
     };
-    state.data.resize(HEAP_SIZE, 0); // probably not the right way to initialize
-    parse_program(program).and_then(|prog| {
-        state.program = prog;
-        run_program(&mut state)
-    })
+    match parse_program(program) {
+        Ok(program) => {
+            state.program = program;
+            run_program(&mut state);
+        },
+        Err(err) => state.status = ExecutionStatus::Error(err),
+    };
+    state
 }
 
 fn parse_program(program: &str) -> Result<Vec<Command>, String> {
@@ -78,42 +97,44 @@ fn parse_program(program: &str) -> Result<Vec<Command>, String> {
         .collect()
 }
 
-fn run_program(state: &mut State) -> Result<String, String> {
+fn run_program(state: &mut State) {
     // TODO: surely there is a better way to structure this main control flow
+    state.status = ExecutionStatus::InProgress;
     loop {
-        eprintln!("{:?}", state);
         match state.program.get(state.program_ptr) {
             Some(Command::PtrInc) => pointer_increment(state),
             Some(Command::PtrDec) => pointer_decrement(state),
             Some(Command::ValInc) => value_increment(state),
             Some(Command::ValDec) => value_decrement(state),
-            Some(Command::PutChar) => print!("{}", state.data[state.data_ptr]),
+            Some(Command::PutChar) => put_character(state),
             Some(Command::GetChar) => get_character(state),
             Some(Command::LoopBeg) => loop_enter(state),
             Some(Command::LoopEnd) => loop_exit(state),
+            Some(Command::DebugDump) => println!("{:?}", state),
+            Some(Command::DebugBreakpoint) => panic!(),
             None => break,
         };
         state.program_ptr += 1;
     };
-    Ok("success".to_string())
+    match state.status {
+        ExecutionStatus::Error(_) => {},
+        _ => state.status = ExecutionStatus::Terminated,
+    }
 }
 
 fn pointer_increment(state: &mut State) {
     state.data_ptr += 1;
-    /* TODO: implement bounds checks
-    match state.data_ptr {
-        0 => panic!("bf error: segfault (below beginning)"),
-        i if i > state.data.len() => panic!("bf error: segfault (past end)"),
-        _ => match amount {
-            a if a < 0 => state.data_ptr -= usize::from(-a),
-            a => state.data_ptr += usize::from(a),
-        }
+    match state.data.get(state.data_ptr) {
+        Some(_) => {},
+        None => state.data.push(0),
     }
-    */
 }
 
 fn pointer_decrement(state: &mut State) {
-    state.data_ptr -= 1;
+    match state.data_ptr {
+        0 => state.data.insert(0, 0),
+        _ => state.data_ptr -= 1,
+    }
 }
 
 fn value_increment(state: &mut State) {
@@ -128,39 +149,57 @@ fn value_decrement(state: &mut State) {
     }
 }
 
+fn put_character(state: &mut State) {
+    print!("{}", state.data[state.data_ptr] as char);
+}
+
 fn get_character(state: &mut State) {
-    // TODO: inspect this copypasta
-    let input: Option<u8> = std::io::stdin()
+    match std::io::stdin()
         .bytes() 
         .next()
         .and_then(|result| result.ok())
-        .map(|byte| byte as u8);
-    match input {
+        .map(|byte| byte as u8)
+    {
         Some(c) => state.data[state.data_ptr] = c,
-        None => panic!("bf error: failed to read"),
+        None => state.status = ExecutionStatus::Terminated,
     }
 }
 
-fn find_loop_end(ptr: usize, program: &Vec<Command>) -> usize {
+fn find_loop_end(ptr: usize, program: &Vec<Command>) -> Result<usize, ()> {
     match program.get(ptr) {
-        Some(Command::LoopEnd) => ptr,
-        Some(Command::LoopBeg) => find_loop_end(find_loop_end(ptr + 1, program), program),
+        Some(Command::LoopEnd) => Ok(ptr),
+        Some(Command::LoopBeg) => {
+            find_loop_end(ptr + 1, program)
+                .and_then(|i| find_loop_end(i + 1, program))
+        },
         Some(_) => find_loop_end(ptr + 1, program),
-        None => panic!(""),
+        None => Err(())
     }
 }
 
 fn loop_enter(state: &mut State) {
     match state.data[state.data_ptr] {
-        0 => state.program_ptr = find_loop_end(state.program_ptr + 1, &state.program),
+        0 => match find_loop_end(state.program_ptr + 1, &state.program) {
+            Ok(i) => state.program_ptr = i,
+            Err(_) => {
+                state.status = ExecutionStatus::Error(
+                    "'[' missing corresponding ']'".to_string()
+                )
+            },
+        }
         _ => state.loop_stack.push(state.program_ptr),
     }
 }
 
 fn loop_exit(state: &mut State) {
-    match state.loop_stack.pop() {
+    match (state.loop_stack.pop(), state.data[state.data_ptr]) {
+        (Some(ptr_loc), 0) => {},
         // account for the fact that the program pointer is going to be incremented
-        Some(ptr_loc) => state.program_ptr = ptr_loc - 1,
-        None => panic!("bf error: ']' missing corresponding '['"),
+        (Some(ptr_loc), _) => state.program_ptr = ptr_loc - 1,
+        (None, _) => {
+            state.status = ExecutionStatus::Error(
+                "']' missing corresponding '['".to_string()
+            )
+        },
     }
 }
