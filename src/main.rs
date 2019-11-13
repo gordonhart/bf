@@ -3,6 +3,7 @@ use std::env;
 mod token;
 mod interpreter;
 mod repl;
+mod test;
 
 fn main() {
     let err_str: &'static str = "usage: bf <program>";

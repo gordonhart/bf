@@ -1,6 +1,7 @@
 use std::io::{Write, Read};
 
-use crate::token::{decode_token, encode_token, Token};
+use crate::token::Token;
+use crate::repl;
 
 #[derive(Debug)]
 pub struct State {
@@ -37,7 +38,7 @@ pub fn run(program: &str) -> State {
 pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
     program
         .chars()
-        .map(|c| decode_token(c))
+        .map(|c| Token::decode(c))
         .collect()
 }
 
@@ -72,7 +73,7 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
         Token::DebugDump => eprintln!("{:?}", state),
-        Token::DebugBreakpoint => {}, // repl::run(state),
+        Token::DebugBreakpoint => repl::run(state),
     };
 }
 

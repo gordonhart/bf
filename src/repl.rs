@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::token::{Token, decode_token};
+use crate::token::Token;
 use crate::interpreter;
 
 pub fn run(state: &mut interpreter::State) {
@@ -28,7 +28,7 @@ Enter 'q' to exit the session and resume program execution.");
                         state.program_ptr = prev_program_ptr;
                         break 'repl;
                     } else {
-                        match decode_token(c) {
+                        match Token::decode(c) {
                             Ok(command) => new_program.push(command),
                             Err(err) => eprintln!("{}", err),
                         };
