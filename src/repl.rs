@@ -1,11 +1,8 @@
 extern crate rustyline;
 
-use rustyline::{Editor, error::ReadlineError};
+use rustyline::Editor;
 
-use crate::token::Token;
 use crate::interpreter;
-
-static HISTORY_FILE: &'static str = ".bf_history";
 
 pub fn run(state: &mut interpreter::State) {
     let mut rl = Editor::<()>::new();
