@@ -72,10 +72,12 @@ some additions:
 
     - Example: `$ ./bf ',[.[-],]' < README.md`
 
+
 ## TODOs
 - [ ] Accept and ignore non-command characters instead of failing (comments)
-- [ ] Integrate `readline` for REPL input
+- [x] Integrate `readline` for REPL input
 - [ ] Write docstrings
 - [ ] Support running from file with `-f` and `--file`
 - [ ] Add `-h`/`--help` usage flag
 - [ ] Add `-v`/`--verbose` flag to print extra information (like exit message)
+- [ ] Implement full unit test coverage

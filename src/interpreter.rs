@@ -43,7 +43,6 @@ pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
 }
 
 pub fn run_program(state: &mut State, program: &Vec<Token>) {
-    // TODO: surely there is a better way to structure this main control flow
     state.status = ExecutionStatus::InProgress;
     loop {
         match state.status {
@@ -54,7 +53,6 @@ pub fn run_program(state: &mut State, program: &Vec<Token>) {
             Some(command) => run_command(state, &command, program),
             None => break,
         };
-        state.program_ptr += 1;
     };
     match state.status {
         ExecutionStatus::Error(_) => {},
@@ -74,6 +72,10 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::LoopEnd => loop_exit(state),
         Token::DebugDump => eprintln!("{:?}", state),
         Token::DebugBreakpoint => repl::run(state),
+    };
+    match command {
+        Token::LoopEnd => {}, // special case that sets the program pointer itself
+        _ => state.program_ptr += 1,
     };
 }
 
@@ -149,9 +151,8 @@ fn loop_enter(state: &mut State, program: &Vec<Token>) {
 
 fn loop_exit(state: &mut State) {
     match (state.loop_stack.pop(), state.data[state.data_ptr]) {
-        (Some(_), 0) => {},
-        // account for the fact that the program pointer is going to be incremented
-        (Some(ptr_loc), _) => state.program_ptr = ptr_loc - 1,
+        (Some(_), 0) => state.program_ptr += 1,
+        (Some(ptr_loc), _) => state.program_ptr = ptr_loc,
         (None, _) => {
             state.status = ExecutionStatus::Error(
                 "']' missing corresponding '['".to_string()
