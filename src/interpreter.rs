@@ -43,7 +43,6 @@ pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
 }
 
 pub fn run_program(state: &mut State, program: &Vec<Token>) {
-    // TODO: surely there is a better way to structure this main control flow
     state.status = ExecutionStatus::InProgress;
     loop {
         match state.status {
@@ -54,7 +53,6 @@ pub fn run_program(state: &mut State, program: &Vec<Token>) {
             Some(command) => run_command(state, &command, program),
             None => break,
         };
-        state.program_ptr += 1;
     };
     match state.status {
         ExecutionStatus::Error(_) => {},
@@ -63,6 +61,8 @@ pub fn run_program(state: &mut State, program: &Vec<Token>) {
 }
 
 pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
+    // TODO: not crazy about leaving it up to the token handler function to
+    // increment the program pointer
     match command {
         Token::PtrInc => pointer_increment(state),
         Token::PtrDec => pointer_decrement(state),
@@ -72,7 +72,10 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::GetChar => get_character(state),
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
-        Token::DebugDump => eprintln!("{:?}", state),
+        Token::DebugDump => {
+            eprintln!("{:?}", state);
+            state.program_ptr += 1;
+        },
         Token::DebugBreakpoint => repl::run(state),
     };
 }
@@ -83,6 +86,7 @@ fn pointer_increment(state: &mut State) {
         Some(_) => {},
         None => state.data.push(0),
     }
+    state.program_ptr += 1;
 }
 
 fn pointer_decrement(state: &mut State) {
@@ -90,23 +94,27 @@ fn pointer_decrement(state: &mut State) {
         0 => state.data.insert(0, 0),
         _ => state.data_ptr -= 1,
     }
+    state.program_ptr += 1;
 }
 
 fn value_increment(state: &mut State) {
     match state.data[state.data_ptr].overflowing_add(1) {
         (v, _) => state.data[state.data_ptr] = v,
     }
+    state.program_ptr += 1;
 }
 
 fn value_decrement(state: &mut State) {
     match state.data[state.data_ptr].overflowing_sub(1) {
         (v, _) => state.data[state.data_ptr] = v,
     }
+    state.program_ptr += 1;
 }
 
 fn put_character(state: &mut State) {
     print!("{}", state.data[state.data_ptr] as char);
     match std::io::stdout().flush() { _ => {} };
+    state.program_ptr += 1;
 }
 
 fn get_character(state: &mut State) {
@@ -119,6 +127,7 @@ fn get_character(state: &mut State) {
         Some(c) => state.data[state.data_ptr] = c,
         None => state.status = ExecutionStatus::Terminated,
     }
+    state.program_ptr += 1;
 }
 
 fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
@@ -136,22 +145,24 @@ fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
 fn loop_enter(state: &mut State, program: &Vec<Token>) {
     match state.data[state.data_ptr] {
         0 => match find_loop_end(state.program_ptr + 1, program) {
-            Ok(i) => state.program_ptr = i,
+            Ok(i) => state.program_ptr = i + 1,
             Err(_) => {
                 state.status = ExecutionStatus::Error(
                     "'[' missing corresponding ']'".to_string()
                 )
             },
         }
-        _ => state.loop_stack.push(state.program_ptr),
+        _ => {
+            state.loop_stack.push(state.program_ptr);
+            state.program_ptr += 1;
+        },
     }
 }
 
 fn loop_exit(state: &mut State) {
     match (state.loop_stack.pop(), state.data[state.data_ptr]) {
-        (Some(_), 0) => {},
-        // account for the fact that the program pointer is going to be incremented
-        (Some(ptr_loc), _) => state.program_ptr = ptr_loc - 1,
+        (Some(_), 0) => state.program_ptr += 1,
+        (Some(ptr_loc), _) => state.program_ptr = ptr_loc,
         (None, _) => {
             state.status = ExecutionStatus::Error(
                 "']' missing corresponding '['".to_string()
