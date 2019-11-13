@@ -3,7 +3,7 @@ use std::io::{Write, Read};
 use crate::token::Token;
 use crate::repl;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct State {
     pub data: Vec<u8>,
     pub data_ptr: usize,
@@ -12,7 +12,7 @@ pub struct State {
     pub status: ExecutionStatus<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ExecutionStatus<T> {
     NotStarted,
     InProgress,

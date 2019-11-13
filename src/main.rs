@@ -3,6 +3,8 @@ use std::env;
 mod token;
 mod interpreter;
 mod repl;
+
+#[cfg(test)]
 mod test;
 
 fn main() {

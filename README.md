@@ -38,6 +38,7 @@ some additions:
     - Proper exit code setting
     - Expected options like `--help`
 - Reasonable performance and resource usage (nothing dumb)
+- Non-negligible test coverage
 
 
 
