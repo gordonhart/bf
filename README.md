@@ -78,8 +78,8 @@ some additions:
 - [ ] Accept and ignore non-command characters instead of failing (comments)
 - [x] Integrate `readline` for REPL input
 - [ ] Write docstrings
-- [ ] Support running from file with `-f` and `--file`
-- [ ] Add `-h`/`--help` usage flag
-- [ ] Add `-v`/`--verbose` flag to print extra information (like exit message)
+- [x] Support running from file with `-f` and `--file`
+- [x] Add `-h`/`--help` usage flag
+- [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
 - [ ] Implement full unit test coverage
 - [ ] Apply `rustfmt` formatting
