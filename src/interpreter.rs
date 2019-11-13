@@ -61,8 +61,6 @@ pub fn run_program(state: &mut State, program: &Vec<Token>) {
 }
 
 pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
-    // TODO: not crazy about leaving it up to the token handler function to
-    // increment the program pointer
     match command {
         Token::PtrInc => pointer_increment(state),
         Token::PtrDec => pointer_decrement(state),
@@ -72,11 +70,12 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::GetChar => get_character(state),
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
-        Token::DebugDump => {
-            eprintln!("{:?}", state);
-            state.program_ptr += 1;
-        },
+        Token::DebugDump => eprintln!("{:?}", state),
         Token::DebugBreakpoint => repl::run(state),
+    };
+    match command {
+        Token::LoopEnd => {}, // special case that sets the program pointer itself
+        _ => state.program_ptr += 1,
     };
 }
 
@@ -86,7 +85,6 @@ fn pointer_increment(state: &mut State) {
         Some(_) => {},
         None => state.data.push(0),
     }
-    state.program_ptr += 1;
 }
 
 fn pointer_decrement(state: &mut State) {
@@ -94,27 +92,23 @@ fn pointer_decrement(state: &mut State) {
         0 => state.data.insert(0, 0),
         _ => state.data_ptr -= 1,
     }
-    state.program_ptr += 1;
 }
 
 fn value_increment(state: &mut State) {
     match state.data[state.data_ptr].overflowing_add(1) {
         (v, _) => state.data[state.data_ptr] = v,
     }
-    state.program_ptr += 1;
 }
 
 fn value_decrement(state: &mut State) {
     match state.data[state.data_ptr].overflowing_sub(1) {
         (v, _) => state.data[state.data_ptr] = v,
     }
-    state.program_ptr += 1;
 }
 
 fn put_character(state: &mut State) {
     print!("{}", state.data[state.data_ptr] as char);
     match std::io::stdout().flush() { _ => {} };
-    state.program_ptr += 1;
 }
 
 fn get_character(state: &mut State) {
@@ -127,7 +121,6 @@ fn get_character(state: &mut State) {
         Some(c) => state.data[state.data_ptr] = c,
         None => state.status = ExecutionStatus::Terminated,
     }
-    state.program_ptr += 1;
 }
 
 fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
@@ -145,17 +138,14 @@ fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
 fn loop_enter(state: &mut State, program: &Vec<Token>) {
     match state.data[state.data_ptr] {
         0 => match find_loop_end(state.program_ptr + 1, program) {
-            Ok(i) => state.program_ptr = i + 1,
+            Ok(i) => state.program_ptr = i,
             Err(_) => {
                 state.status = ExecutionStatus::Error(
                     "'[' missing corresponding ']'".to_string()
                 )
             },
         }
-        _ => {
-            state.loop_stack.push(state.program_ptr);
-            state.program_ptr += 1;
-        },
+        _ => state.loop_stack.push(state.program_ptr),
     }
 }
 
