@@ -48,12 +48,10 @@ impl Token {
 }
 
 impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result  {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", Token::encode(*self))
     }
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -88,5 +86,4 @@ mod test {
             assert_eq!(Token::encode(t), c);
         }
     }
-
 }

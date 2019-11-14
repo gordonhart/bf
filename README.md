@@ -1,4 +1,6 @@
 # BrainF\*ck Interpreter
+[![Build Status](https://travis-ci.com/gordonhart/bf.svg?branch=master)](https://travis-ci.com/gordonhart/bf)
+
 The secondary purpose of this project is to implement an interpreter for the
 [BrainF\*ck programming language](https://en.wikipedia.org/wiki/Brainfuck) with
 a few extensions. The primary purpose is to learn Rust.

@@ -7,13 +7,15 @@ use crate::interpreter;
 pub fn run(state: &mut interpreter::State) {
     let mut rl = Editor::<()>::new();
 
-    println!("\
+    println!(
+        "\
 You have entered an interactive session. All regular commands are available.
 
 Commands:
     'c' : Continue execution at the command following this breakpoint
     'q' : Exit interpreter
-");
+"
+    );
 
     'repl: loop {
         let input_line = rl.readline("bf $ ");
@@ -21,7 +23,7 @@ Commands:
             Ok(line) if line == "q" => {
                 state.status = interpreter::ExecutionStatus::Terminated;
                 break 'repl;
-            },
+            }
             Ok(line) if line == "c" => break 'repl,
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
@@ -32,10 +34,10 @@ Commands:
                         state.program_ptr = 0;
                         interpreter::run_program(state, &program);
                         state.program_ptr = prev_program_ptr;
-                    },
+                    }
                     Err(e) => println!("{:?}", e),
                 }
-            },
+            }
             Err(e) => println!("{:?}", e),
         }
     }
