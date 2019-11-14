@@ -18,15 +18,14 @@ fn get_command_line_args() -> ArgMatches<'static> {
         .arg(
             Arg::with_name(PROGRAM_ARG)
                 .help("Program to execute")
-                .required(true)
                 .conflicts_with(FILENAME_ARG)
-                .index(1),
+                .index(1)
         )
         .arg(
             Arg::with_name(VERBOSE_ARG)
                 .short("v")
                 .long("verbose")
-                .help("Toggle high verbosity"),
+                .help("Toggle high verbosity")
         )
         .arg(
             Arg::with_name(FILENAME_ARG)
@@ -35,7 +34,7 @@ fn get_command_line_args() -> ArgMatches<'static> {
                 .takes_value(true)
                 .value_name("FILENAME")
                 .conflicts_with(PROGRAM_ARG)
-                .help("Program file to execute"),
+                .help("Program file to execute")
         )
         .get_matches()
 }
@@ -52,6 +51,7 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        (None, None) => "!".to_string(),  // default to REPL if no program provided
         // final arm should never be reached due to mutual `conflicts_with`
         _ => panic!("bf: argument error"),
     };
