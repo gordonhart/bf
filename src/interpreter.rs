@@ -39,6 +39,7 @@ pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
     program
         .chars()
         .map(|c| Token::decode(c))
+        .filter(|t_res| t_res.is_ok())
         .collect()
 }
 
@@ -158,5 +159,60 @@ fn loop_exit(state: &mut State) {
                 "']' missing corresponding '['".to_string()
             )
         },
+    }
+}
+
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn get_blank_state() -> State {
+        State {
+            data: vec![0],
+            data_ptr: 0,
+            program_ptr: 0,
+            loop_stack: vec![],
+            status: ExecutionStatus::NotStarted,
+        }
+    }
+
+    #[test]
+    fn test_pointer_increment() {
+        let mut state = get_blank_state();
+        pointer_increment(&mut state);
+        assert_eq!(1, state.data_ptr);
+        assert_eq!(vec![0, 0], state.data);
+    }
+
+    #[test]
+    fn test_pointer_decrement() {
+        let mut state = get_blank_state();
+        pointer_decrement(&mut state);
+        assert_eq!(0, state.data_ptr);
+        assert_eq!(vec![0, 0], state.data);
+    }
+
+    #[test]
+    fn test_value_increment() {
+        let mut state = get_blank_state();
+        value_increment(&mut state);
+        assert_eq!(1, state.data[state.data_ptr]);
+    }
+
+    #[test]
+    fn test_value_increment_with_overflow() {
+        let mut state = get_blank_state();
+        state.data[state.data_ptr] = 255;
+        value_increment(&mut state);
+        assert_eq!(0, state.data[state.data_ptr]);
+    }
+
+    #[test]
+    fn test_value_decrement_with_underflow() {
+        let mut state = get_blank_state();
+        value_decrement(&mut state);
+        assert_eq!(255, state.data[state.data_ptr]);
     }
 }

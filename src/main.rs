@@ -6,9 +6,6 @@ mod token;
 mod interpreter;
 mod repl;
 
-#[cfg(test)]
-mod test;
-
 static PROGRAM_ARG: &'static str = "program";
 static VERBOSE_ARG: &'static str = "verbose";
 static FILENAME_ARG: &'static str = "filename";

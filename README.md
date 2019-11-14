@@ -75,10 +75,10 @@ some additions:
 
 
 ## TODOs
-- [ ] Accept and ignore non-command characters instead of failing (comments)
+- [x] Accept and ignore non-command characters instead of failing (comments)
 - [x] Integrate `readline` for REPL input
 - [ ] Write docstrings
-- [x] Support running from file with `-f` and `--file`
+- [x] Support running from file with `-f` and `--filename`
 - [x] Add `-h`/`--help` usage flag
 - [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
 - [ ] Implement full unit test coverage
