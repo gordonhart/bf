@@ -1,6 +1,6 @@
-# Brainfuck Interpreter
+# BrainF\*ck Interpreter
 The secondary purpose of this project is to implement an interpreter for the
-[Brainfuck programming language](https://en.wikipedia.org/wiki/Brainfuck) with
+[BrainF\*ck programming language](https://en.wikipedia.org/wiki/Brainfuck) with
 a few extensions. The primary purpose is to learn Rust.
 
 
@@ -23,7 +23,7 @@ This implementation follows the
 [Wikipedia standard](https://en.wikipedia.org/wiki/Brainfuck#Commands) with
 some additions:
 - `?`: Dump the internal program execution state to stderr
-- `!`: Breakpoint to enter into a Brainfuck REPL
+- `!`: Breakpoint to enter into a BrainF\*ck REPL
 
 
 
@@ -39,6 +39,7 @@ some additions:
     - Expected options like `--help`
 - Reasonable performance and resource usage (nothing dumb)
 - Non-negligible test coverage
+- No compiler warnings
 
 
 
@@ -77,7 +78,8 @@ some additions:
 - [ ] Accept and ignore non-command characters instead of failing (comments)
 - [x] Integrate `readline` for REPL input
 - [ ] Write docstrings
-- [ ] Support running from file with `-f` and `--file`
-- [ ] Add `-h`/`--help` usage flag
-- [ ] Add `-v`/`--verbose` flag to print extra information (like exit message)
+- [x] Support running from file with `-f` and `--file`
+- [x] Add `-h`/`--help` usage flag
+- [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
 - [ ] Implement full unit test coverage
+- [ ] Apply `rustfmt` formatting
