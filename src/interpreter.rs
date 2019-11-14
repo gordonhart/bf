@@ -215,4 +215,10 @@ mod test {
         value_decrement(&mut state);
         assert_eq!(255, state.data[state.data_ptr]);
     }
+
+    #[test]
+    fn test_find_loop_end() {
+        let program = vec![Token::PtrInc, Token::LoopEnd];
+        assert_eq!(Ok(1), find_loop_end(0, &program));
+    }
 }
