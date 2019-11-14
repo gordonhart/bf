@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::env;
 use std::path::PathBuf;
 use std::process::Command;
@@ -16,14 +17,21 @@ fn get_exe() -> PathBuf {
     root.join("bf")
 }
 
-fn test_program(prog: &str, output: &str) {
-    let result = Command::new(&get_exe())
+fn test_program(prog: &str, input: &str, output: &str) {
+    let mut child = Command::new(&get_exe())
         .arg(prog)
-        .output()
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
         .expect("failed to execute");
-    let retcode = result.status.code().unwrap();
+
+    let stdin = child.stdin.as_mut().expect("failed to open stdin");
+    stdin.write_all(input.as_bytes()).expect("failed to write to stdin");
+    let child_output = child.wait_with_output().expect("failed to read stdout");
+
+    let retcode = child_output.status.code().unwrap();
     assert_eq!(0, retcode);
-    let stdout_str = std::str::from_utf8(&result.stdout).unwrap();
+    let stdout_str = std::str::from_utf8(&child_output.stdout).unwrap();
     assert_eq!(output, stdout_str);
 }
 
@@ -31,6 +39,7 @@ fn test_program(prog: &str, output: &str) {
 fn test_hello_world() {
     test_program(
         "+[-->-[>>+>-----<<]<--<---]>-.>>>+.>>..+++[.>]<<<<.+++.------.<<-.>>>>+.",
+        "",
         "Hello, World!"
     );
 }
@@ -41,6 +50,7 @@ fn test_hello_world2() {
 >++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<
 +++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------
 ------.>>.+++.------.--------.>+.>+.",
+        "",
         "Hello World!\n"
     );
 }
@@ -59,6 +69,18 @@ fn test_squares() {
 [Outputs square numbers from 0 to 10000.
 Daniel B Cristofani (cristofdathevanetdotcom)
 http://www.hevanet.com/cristofd/brainfuck/]",
+        "",
         expected_result.as_str()
     );
+}
+
+#[test]
+fn test_cat() {
+    let some_str: &str = "Some testing string!\n";
+    test_program(",[.[-],]", some_str, some_str);
+}
+
+#[test]
+fn test_cat2() {
+    test_program(",[.[-],]", "😸", "😸");
 }
