@@ -1,4 +1,6 @@
 # BrainF\*ck Interpreter
+[![Build Status](https://travis-ci.com/gordonhart/bf.svg?branch=master)](https://travis-ci.com/gordonhart/bf)
+
 The secondary purpose of this project is to implement an interpreter for the
 [BrainF\*ck programming language](https://en.wikipedia.org/wiki/Brainfuck) with
 a few extensions. The primary purpose is to learn Rust.
@@ -75,11 +77,12 @@ some additions:
 
 
 ## TODOs
-- [ ] Accept and ignore non-command characters instead of failing (comments)
+- [x] Accept and ignore non-command characters instead of failing (comments)
 - [x] Integrate `readline` for REPL input
 - [ ] Write docstrings
-- [x] Support running from file with `-f` and `--file`
+- [x] Support running from file with `-f` and `--filename`
 - [x] Add `-h`/`--help` usage flag
 - [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
 - [ ] Implement full unit test coverage
-- [ ] Apply `rustfmt` formatting
+- [x] Apply `rustfmt` formatting
+- [ ] Support unicode output with `-u`/`--utf8` flag
