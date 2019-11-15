@@ -80,9 +80,8 @@ fn test_cat() {
     test_program(",[.[-],]", some_str, some_str);
 }
 
-/* TODO: implement unicode support
 #[test]
+#[ignore]
 fn test_cat2() {
     test_program(",[.[-],]", "😸", "😸");
 }
-*/

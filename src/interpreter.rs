@@ -1,5 +1,6 @@
-use std::io::{Read, Write};
+use std::io::Read;
 
+use crate::buffer::{Buffer, ASCIICharBuffer, ASCIILineBuffer, UTF8CharBuffer};
 use crate::repl;
 use crate::token::Token;
 
@@ -10,6 +11,7 @@ pub struct State {
     pub program_ptr: usize,
     pub loop_stack: Vec<usize>,
     pub status: ExecutionStatus<String>,
+    pub buffer: &'static (dyn Buffer + 'static),  // TODO: 'static is a cop-out
 }
 
 #[derive(Debug, PartialEq)]
@@ -27,6 +29,7 @@ pub fn run(program: &str) -> State {
         program_ptr: 0,
         loop_stack: vec![],
         status: ExecutionStatus::NotStarted,
+        buffer: &ASCIICharBuffer {},
     };
     match parse_program(program) {
         Ok(parsed_program) => run_program(&mut state, &parsed_program),
@@ -67,7 +70,7 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::PtrDec => pointer_decrement(state),
         Token::ValInc => value_increment(state),
         Token::ValDec => value_decrement(state),
-        Token::PutChar => put_character(state),
+        Token::PutChar => state.buffer.put_byte(state.data[state.data_ptr]),
         Token::GetChar => get_character(state),
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
@@ -105,13 +108,6 @@ fn value_decrement(state: &mut State) {
     match state.data[state.data_ptr].overflowing_sub(1) {
         (v, _) => state.data[state.data_ptr] = v,
     }
-}
-
-fn put_character(state: &mut State) {
-    print!("{}", state.data[state.data_ptr] as char);
-    match std::io::stdout().flush() {
-        _ => {}
-    };
 }
 
 fn get_character(state: &mut State) {
@@ -170,6 +166,7 @@ mod test {
             program_ptr: 0,
             loop_stack: vec![],
             status: ExecutionStatus::NotStarted,
+            buffer: &ASCIICharBuffer {},
         }
     }
 

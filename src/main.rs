@@ -2,6 +2,7 @@ extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
 
+mod buffer;
 mod interpreter;
 mod repl;
 mod token;
