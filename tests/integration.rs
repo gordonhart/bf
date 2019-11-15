@@ -1,16 +1,12 @@
-use std::io::Write;
 use std::env;
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
 // static EXE: &'static PathBuf = get_exe();
 
 fn get_exe() -> PathBuf {
-    let mut root = env::current_exe()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_path_buf();
+    let mut root = env::current_exe().unwrap().parent().unwrap().to_path_buf();
     if root.ends_with("deps") {
         root.pop();
     };
@@ -26,7 +22,9 @@ fn test_program(prog: &str, input: &str, output: &str) {
         .expect("failed to execute");
 
     let stdin = child.stdin.as_mut().expect("failed to open stdin");
-    stdin.write_all(input.as_bytes()).expect("failed to write to stdin");
+    stdin
+        .write_all(input.as_bytes())
+        .expect("failed to write to stdin");
     let child_output = child.wait_with_output().expect("failed to read stdout");
 
     let retcode = child_output.status.code().unwrap();
@@ -40,18 +38,19 @@ fn test_hello_world() {
     test_program(
         "+[-->-[>>+>-----<<]<--<---]>-.>>>+.>>..+++[.>]<<<<.+++.------.<<-.>>>>+.",
         "",
-        "Hello, World!"
+        "Hello, World!",
     );
 }
 
 #[test]
 fn test_hello_world2() {
-    test_program("
+    test_program(
+        "
 >++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<
 +++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------
 ------.>>.+++.------.--------.>+.>+.",
         "",
-        "Hello World!\n"
+        "Hello World!\n",
     );
 }
 
@@ -60,7 +59,8 @@ fn test_squares() {
     let expected_result_vec: Vec<String> = (0..101).map(|i| (i * i).to_string()).collect();
     let mut expected_result = expected_result_vec.join("\n");
     expected_result.push('\n');
-    test_program("
+    test_program(
+        "
 ++++[>+++++<-]>[<+++++>-]+<+[
     >[>+>+<<-]++>>[<<+>>-]>>>[-]++>[-]+
     >>>+[[-]++++++>>>]<<<[[<++++++++<++>>-]+<.<[>----<-]<]
@@ -70,7 +70,7 @@ fn test_squares() {
 Daniel B Cristofani (cristofdathevanetdotcom)
 http://www.hevanet.com/cristofd/brainfuck/]",
         "",
-        expected_result.as_str()
+        expected_result.as_str(),
     );
 }
 
@@ -80,7 +80,9 @@ fn test_cat() {
     test_program(",[.[-],]", some_str, some_str);
 }
 
+/* TODO: implement unicode support
 #[test]
 fn test_cat2() {
     test_program(",[.[-],]", "😸", "😸");
 }
+*/

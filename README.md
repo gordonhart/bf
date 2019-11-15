@@ -84,4 +84,5 @@ some additions:
 - [x] Add `-h`/`--help` usage flag
 - [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
 - [ ] Implement full unit test coverage
-- [ ] Apply `rustfmt` formatting
+- [x] Apply `rustfmt` formatting
+- [ ] Support unicode output with `-u`/`--utf8` flag
