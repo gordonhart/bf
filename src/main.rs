@@ -72,8 +72,9 @@ fn main() {
         _ => panic!("bfi: argument error"),
     };
 
-    let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
-    // let mut buffer = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
+    let mut buffer: Box<dyn buffer::Buffer> = match
+        (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG))
+    {
         (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
         (_, true) => Box::new(buffer::ASCIICharBuffer {}),
         (_, false) => Box::new(buffer::ASCIILineBuffer {}),
