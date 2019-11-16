@@ -2,6 +2,7 @@ extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
 
+mod buffer;
 mod interpreter;
 mod repl;
 mod token;
@@ -10,10 +11,11 @@ static PROGRAM_ARG: &'static str = "program";
 static VERBOSE_ARG: &'static str = "verbose";
 static FILE_ARG: &'static str = "file";
 static UTF8_FLAG: &'static str = "utf8";
+static UNBUFFERED_FLAG: &'static str = "unbuffered";
 
 // explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {
-    App::new("bf")
+    App::new("bfi")
         .version("0.1")
         .about("BrainF*ck language interpreter")
         .arg(
@@ -44,6 +46,12 @@ fn get_command_line_args() -> ArgMatches<'static> {
                 .takes_value(false)
                 .help("Use 8-bit Unicode output encoding"),
         )
+        .arg(
+            Arg::with_name(UNBUFFERED_FLAG)
+                .long("unbuffered")
+                .takes_value(false)
+                .help("Do not buffer output"),
+        )
         .get_matches()
 }
 
@@ -55,28 +63,37 @@ fn main() {
         (None, Some(filename)) => match std::fs::read_to_string(filename) {
             Ok(contents) => contents,
             Err(e) => {
-                eprintln!("bf: file '{}' could not be read ({})", filename, e);
+                eprintln!("bfi: file '{}' could not be read ({})", filename, e);
                 std::process::exit(1);
             }
         },
         (None, None) => "!".to_string(), // default to REPL if no program provided
         // final arm should never be reached due to mutual `conflicts_with`
-        _ => panic!("bf: argument error"),
+        _ => panic!("bfi: argument error"),
     };
 
-    let program_state_after_execution = interpreter::run(program_string.as_str());
+    let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
+    // let mut buffer = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
+        (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
+        (_, true) => Box::new(buffer::ASCIICharBuffer {}),
+        (_, false) => Box::new(buffer::ASCIILineBuffer {}),
+    };
+
+    // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
+    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
+
     let retcode: i32 = match program_state_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
-                eprintln!("bf: terminated without errors");
+                eprintln!("bfi: terminated without errors");
             };
             0
         }
         interpreter::ExecutionStatus::Error(err) => {
-            eprintln!("bf: exited with error: {}", err);
+            eprintln!("bfi: exited with error: {}", err);
             1
         }
-        _ => panic!("bf: internal error"),
+        _ => panic!("bfi: internal error"),
     };
 
     std::process::exit(retcode);

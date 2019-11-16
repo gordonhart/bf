@@ -1,15 +1,44 @@
-use std::io::{Read, Write};
+use std::io::Read;
 
+use crate::buffer::Buffer;
 use crate::repl;
 use crate::token::Token;
 
-#[derive(Debug, PartialEq)]
-pub struct State {
+// TODO: figure out why these derive macros fail with E0495:
+// cannot infer an appropriate lifetime for lifetime parameter `'a` due to conflicting requirements
+// #[derive(Debug, PartialEq)]
+pub struct State<'a> {
     pub data: Vec<u8>,
     pub data_ptr: usize,
     pub program_ptr: usize,
     pub loop_stack: Vec<usize>,
     pub status: ExecutionStatus<String>,
+    pub buffer: &'a mut dyn Buffer,
+}
+
+impl<'a> std::fmt::Debug for State<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "State:\n\
+            \tdata: {:?}\n\
+            \tdata_ptr: {:?}\n\
+            \tprogram_ptr: {:?}\n\
+            \tloop_stack: {:?}\n\
+            \tstatus: {:?}",
+            self.data, self.data_ptr, self.program_ptr, self.loop_stack, self.status)
+    }
+}
+
+impl<'a> State<'a> {
+    pub fn new<'b>(buffer: &'b mut dyn Buffer) -> State<'b> {
+        State {
+            data: vec![0],
+            data_ptr: 0,
+            program_ptr: 0,
+            loop_stack: vec![],
+            status: ExecutionStatus::NotStarted,
+            buffer: buffer,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -20,14 +49,8 @@ pub enum ExecutionStatus<T> {
     Error(T),
 }
 
-pub fn run(program: &str) -> State {
-    let mut state = State {
-        data: vec![0], // Vec::with_capacity(HEAP_SIZE),
-        data_ptr: 0,
-        program_ptr: 0,
-        loop_stack: vec![],
-        status: ExecutionStatus::NotStarted,
-    };
+pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> State<'a> {
+    let mut state = State::new(buffer);
     match parse_program(program) {
         Ok(parsed_program) => run_program(&mut state, &parsed_program),
         Err(err) => state.status = ExecutionStatus::Error(err),
@@ -67,7 +90,7 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::PtrDec => pointer_decrement(state),
         Token::ValInc => value_increment(state),
         Token::ValDec => value_decrement(state),
-        Token::PutChar => put_character(state),
+        Token::PutChar => state.buffer.put_byte(state.data[state.data_ptr]),
         Token::GetChar => get_character(state),
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
@@ -105,13 +128,6 @@ fn value_decrement(state: &mut State) {
     match state.data[state.data_ptr].overflowing_sub(1) {
         (v, _) => state.data[state.data_ptr] = v,
     }
-}
-
-fn put_character(state: &mut State) {
-    print!("{}", state.data[state.data_ptr] as char);
-    match std::io::stdout().flush() {
-        _ => {}
-    };
 }
 
 fn get_character(state: &mut State) {
@@ -162,20 +178,12 @@ fn loop_exit(state: &mut State) {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    fn get_blank_state() -> State {
-        State {
-            data: vec![0],
-            data_ptr: 0,
-            program_ptr: 0,
-            loop_stack: vec![],
-            status: ExecutionStatus::NotStarted,
-        }
-    }
+    use crate::buffer::ASCIICharBuffer;
 
     #[test]
     fn test_pointer_increment() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = State::new(&mut buffer);
         pointer_increment(&mut state);
         assert_eq!(1, state.data_ptr);
         assert_eq!(vec![0, 0], state.data);
@@ -183,7 +191,8 @@ mod test {
 
     #[test]
     fn test_pointer_decrement() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = State::new(&mut buffer);
         pointer_decrement(&mut state);
         assert_eq!(0, state.data_ptr);
         assert_eq!(vec![0, 0], state.data);
@@ -191,14 +200,16 @@ mod test {
 
     #[test]
     fn test_value_increment() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = State::new(&mut buffer);
         value_increment(&mut state);
         assert_eq!(1, state.data[state.data_ptr]);
     }
 
     #[test]
     fn test_value_increment_with_overflow() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = State::new(&mut buffer);
         state.data[state.data_ptr] = 255;
         value_increment(&mut state);
         assert_eq!(0, state.data[state.data_ptr]);
@@ -206,7 +217,8 @@ mod test {
 
     #[test]
     fn test_value_decrement_with_underflow() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = State::new(&mut buffer);
         value_decrement(&mut state);
         assert_eq!(255, state.data[state.data_ptr]);
     }
