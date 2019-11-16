@@ -1,5 +1,5 @@
 # Interactive BrainF\*ck Interpreter
-[![Build Status](https://travis-ci.com/gordonhart/bf.svg?branch=master)](https://travis-ci.com/gordonhart/bf)
+[![Build Status](https://travis-ci.com/gordonhart/bfi.svg?branch=master)](https://travis-ci.com/gordonhart/bfi)
 
 Are you tired of writing Python and JS at your day job? Looking to learn a
 lower-level language but dreading leaving the comforts of your REPL? Well, your
@@ -64,7 +64,7 @@ gumball programs:
 ```
 ,[.[-],]
 ```
-- Example: `$ ./bf ',[.[-],]' < README.md`
+- Example: `$ <README.md bfi ',[.[-],]'`
 
 3. Display the 5th iteration of the
 [Sierpinski Triangle](http://www.hevanet.com/cristofd/brainfuck/):
@@ -91,7 +91,7 @@ $ cargo run <program>
 Or compiled first then run:
 ```
 $ cargo build --release
-$ ./target/release/bf <program>
+$ ./target/release/bfi <program>
 ```
 
 
