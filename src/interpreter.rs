@@ -73,12 +73,11 @@ pub fn run_program(state: &mut State, program: &Vec<Token>) {
         };
         match program.get(state.program_ptr) {
             Some(command) => run_command(state, &command, program),
-            None => break,
+            None => {
+                state.status = ExecutionStatus::Terminated;
+                break;
+            },
         };
-    }
-    match state.status {
-        ExecutionStatus::Error(_) => {}
-        _ => state.status = ExecutionStatus::Terminated,
     }
 }
 
@@ -136,7 +135,7 @@ fn get_character(state: &mut State) {
         .map(|byte| byte as u8)
     {
         Some(c) => state.data[state.data_ptr] = c,
-        None => state.status = ExecutionStatus::Terminated,
+        None => state.status = ExecutionStatus::Terminated, // EOF
     }
 }
 
