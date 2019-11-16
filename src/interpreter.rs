@@ -39,7 +39,7 @@ impl<'a> State<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ExecutionStatus<T> {
     NotStarted,
     InProgress,

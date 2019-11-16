@@ -18,29 +18,26 @@ Commands:
     );
 
     'repl: loop {
-        let input_line = rl.readline("bfi $ ");
-        match input_line {
-            Ok(line) if line == "q" => {
-                state.status = interpreter::ExecutionStatus::Terminated;
-                break 'repl;
-            }
-            Ok(line) if line == "c" => break 'repl,
-            Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                let new_program = interpreter::parse_program(line.as_str());
-                match new_program {
-                    Ok(program) => {
-                        let prev_program_ptr = state.program_ptr;
-                        state.program_ptr = 0;
-                        interpreter::run_program(state, &program);
-                        state.program_ptr = prev_program_ptr;
-                    }
-                    Err(e) => println!("{:?}", e),
+        let input_line = rl.readline("bfi $ ").expect("bfi: unable to read input");
+        if input_line == "q" {
+            state.status = interpreter::ExecutionStatus::Terminated;
+            break 'repl;
+        } else if input_line == "c" {
+            break 'repl;
+        } else {
+            rl.add_history_entry(input_line.as_str());
+            let new_program = interpreter::parse_program(input_line.as_str());
+            match new_program {
+                Ok(program) => {
+                    let prev_program_ptr = state.program_ptr;
+                    let prev_execution_status = state.status.clone();
+                    state.program_ptr = 0;
+                    interpreter::run_program(state, &program);
+                    state.program_ptr = prev_program_ptr;
+                    state.status = prev_execution_status;
                 }
+                Err(e) => println!("{:?}", e),
             }
-            Err(e) => println!("{:?}", e),
         }
     }
-
-    state.program_ptr += 1;
 }
