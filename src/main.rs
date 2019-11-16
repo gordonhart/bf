@@ -15,7 +15,7 @@ static UNBUFFERED_FLAG: &'static str = "unbuffered";
 
 // explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {
-    App::new("bf")
+    App::new("bfi")
         .version("0.1")
         .about("BrainF*ck language interpreter")
         .arg(
@@ -63,13 +63,13 @@ fn main() {
         (None, Some(filename)) => match std::fs::read_to_string(filename) {
             Ok(contents) => contents,
             Err(e) => {
-                eprintln!("bf: file '{}' could not be read ({})", filename, e);
+                eprintln!("bfi: file '{}' could not be read ({})", filename, e);
                 std::process::exit(1);
             }
         },
         (None, None) => "!".to_string(), // default to REPL if no program provided
         // final arm should never be reached due to mutual `conflicts_with`
-        _ => panic!("bf: argument error"),
+        _ => panic!("bfi: argument error"),
     };
 
     let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
@@ -85,15 +85,15 @@ fn main() {
     let retcode: i32 = match program_state_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
-                eprintln!("bf: terminated without errors");
+                eprintln!("bfi: terminated without errors");
             };
             0
         }
         interpreter::ExecutionStatus::Error(err) => {
-            eprintln!("bf: exited with error: {}", err);
+            eprintln!("bfi: exited with error: {}", err);
             1
         }
-        _ => panic!("bf: internal error"),
+        _ => panic!("bfi: internal error"),
     };
 
     std::process::exit(retcode);

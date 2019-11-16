@@ -80,7 +80,7 @@ gumball programs:
 ---
 
 Serious face this time: the secondary purpose of this project is the
-interpreter; the primary purpose is to learn Rust. It's 
+interpreter; the primary purpose is to learn Rust.
 
 
 ## Usage

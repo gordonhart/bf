@@ -23,7 +23,7 @@ impl<'a> TestCase<'a> {
             root.pop();
         };
         TestCase {
-            executable: Box::new(root.join("bf")),
+            executable: Box::new(root.join("bfi")),
             args: Vec::new(),
             stdin: None,
             expected_stdout: None,

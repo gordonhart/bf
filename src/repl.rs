@@ -18,7 +18,7 @@ Commands:
     );
 
     'repl: loop {
-        let input_line = rl.readline("bf $ ");
+        let input_line = rl.readline("bfi $ ");
         match input_line {
             Ok(line) if line == "q" => {
                 state.status = interpreter::ExecutionStatus::Terminated;
