@@ -80,10 +80,9 @@ fn main() {
         (_, false) => Box::new(buffer::ASCIILineBuffer {}),
     };
 
-    // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
-    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
+    let program_context_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
 
-    let retcode: i32 = match program_state_after_execution.status {
+    let retcode: i32 = match program_context_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
                 eprintln!("bfi: terminated without errors");

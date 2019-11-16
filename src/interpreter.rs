@@ -7,7 +7,7 @@ use crate::token::Token;
 // TODO: figure out why these derive macros fail with E0495:
 // cannot infer an appropriate lifetime for lifetime parameter `'a` due to conflicting requirements
 // #[derive(Debug, PartialEq)]
-pub struct State<'a> {
+pub struct ExecutionContext<'a> {
     pub data: Vec<u8>,
     pub data_ptr: usize,
     pub program_ptr: usize,
@@ -16,7 +16,7 @@ pub struct State<'a> {
     pub buffer: &'a mut dyn Buffer,
 }
 
-impl<'a> std::fmt::Debug for State<'a> {
+impl<'a> std::fmt::Debug for ExecutionContext<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:>11} {:?}\n", "data", self.data)?;
         write!(f, "{:>11} {:?}\n", "data_ptr", self.data_ptr)?;
@@ -26,9 +26,9 @@ impl<'a> std::fmt::Debug for State<'a> {
     }
 }
 
-impl<'a> State<'a> {
-    pub fn new<'b>(buffer: &'b mut dyn Buffer) -> State<'b> {
-        State {
+impl<'a> ExecutionContext<'a> {
+    pub fn new<'b>(buffer: &'b mut dyn Buffer) -> ExecutionContext<'b> {
+        ExecutionContext {
             data: vec![0],
             data_ptr: 0,
             program_ptr: 0,
@@ -47,13 +47,13 @@ pub enum ExecutionStatus<T> {
     Error(T),
 }
 
-pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> State<'a> {
-    let mut state = State::new(buffer);
+pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> ExecutionContext<'a> {
+    let mut context = ExecutionContext::new(buffer);
     match parse_program(program) {
-        Ok(parsed_program) => run_program(&mut state, &parsed_program),
-        Err(err) => state.status = ExecutionStatus::Error(err),
+        Ok(parsed_program) => run_program(&mut context, &parsed_program),
+        Err(err) => context.status = ExecutionStatus::Error(err),
     };
-    state
+    context
 }
 
 pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
@@ -64,78 +64,78 @@ pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
         .collect()
 }
 
-pub fn run_program(state: &mut State, program: &Vec<Token>) {
-    state.status = ExecutionStatus::InProgress;
+pub fn run_program(context: &mut ExecutionContext, program: &Vec<Token>) {
+    context.status = ExecutionStatus::InProgress;
     loop {
-        match state.status {
+        match context.status {
             ExecutionStatus::Terminated | ExecutionStatus::Error(_) => break,
             _ => {}
         };
-        match program.get(state.program_ptr) {
-            Some(command) => run_command(state, &command, program),
+        match program.get(context.program_ptr) {
+            Some(command) => run_command(context, &command, program),
             None => {
-                state.status = ExecutionStatus::Terminated;
+                context.status = ExecutionStatus::Terminated;
                 break;
             },
         };
     }
 }
 
-pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
+pub fn run_command(context: &mut ExecutionContext, command: &Token, program: &Vec<Token>) {
     match command {
-        Token::PtrInc => pointer_increment(state),
-        Token::PtrDec => pointer_decrement(state),
-        Token::ValInc => value_increment(state),
-        Token::ValDec => value_decrement(state),
-        Token::PutChar => state.buffer.put_byte(state.data[state.data_ptr]),
-        Token::GetChar => get_character(state),
-        Token::LoopBeg => loop_enter(state, program),
-        Token::LoopEnd => loop_exit(state),
-        Token::DebugDump => eprintln!("{:?}", state),
-        Token::DebugBreakpoint => repl::run(state),
+        Token::PtrInc => pointer_increment(context),
+        Token::PtrDec => pointer_decrement(context),
+        Token::ValInc => value_increment(context),
+        Token::ValDec => value_decrement(context),
+        Token::PutChar => context.buffer.put_byte(context.data[context.data_ptr]),
+        Token::GetChar => get_character(context),
+        Token::LoopBeg => loop_enter(context, program),
+        Token::LoopEnd => loop_exit(context),
+        Token::DebugDump => eprintln!("{:?}", context),
+        Token::DebugBreakpoint => repl::run(context),
     };
     match command {
         Token::LoopEnd => {} // special case that sets the program pointer itself
-        _ => state.program_ptr += 1,
+        _ => context.program_ptr += 1,
     };
 }
 
-fn pointer_increment(state: &mut State) {
-    state.data_ptr += 1;
-    match state.data.get(state.data_ptr) {
+fn pointer_increment(context: &mut ExecutionContext) {
+    context.data_ptr += 1;
+    match context.data.get(context.data_ptr) {
         Some(_) => {}
-        None => state.data.push(0),
+        None => context.data.push(0),
     }
 }
 
-fn pointer_decrement(state: &mut State) {
-    match state.data_ptr {
-        0 => state.data.insert(0, 0),
-        _ => state.data_ptr -= 1,
+fn pointer_decrement(context: &mut ExecutionContext) {
+    match context.data_ptr {
+        0 => context.data.insert(0, 0),
+        _ => context.data_ptr -= 1,
     }
 }
 
-fn value_increment(state: &mut State) {
-    match state.data[state.data_ptr].overflowing_add(1) {
-        (v, _) => state.data[state.data_ptr] = v,
+fn value_increment(context: &mut ExecutionContext) {
+    match context.data[context.data_ptr].overflowing_add(1) {
+        (v, _) => context.data[context.data_ptr] = v,
     }
 }
 
-fn value_decrement(state: &mut State) {
-    match state.data[state.data_ptr].overflowing_sub(1) {
-        (v, _) => state.data[state.data_ptr] = v,
+fn value_decrement(context: &mut ExecutionContext) {
+    match context.data[context.data_ptr].overflowing_sub(1) {
+        (v, _) => context.data[context.data_ptr] = v,
     }
 }
 
-fn get_character(state: &mut State) {
+fn get_character(context: &mut ExecutionContext) {
     match std::io::stdin()
         .bytes()
         .next()
         .and_then(|result| result.ok())
         .map(|byte| byte as u8)
     {
-        Some(c) => state.data[state.data_ptr] = c,
-        None => state.status = ExecutionStatus::Terminated, // EOF
+        Some(c) => context.data[context.data_ptr] = c,
+        None => context.status = ExecutionStatus::Terminated, // EOF
     }
 }
 
@@ -150,24 +150,25 @@ fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
     }
 }
 
-fn loop_enter(state: &mut State, program: &Vec<Token>) {
-    match state.data[state.data_ptr] {
-        0 => match find_loop_end(state.program_ptr + 1, program) {
-            Ok(i) => state.program_ptr = i,
+fn loop_enter(context: &mut ExecutionContext, program: &Vec<Token>) {
+    if context.data[context.data_ptr] == 0 {
+        match find_loop_end(context.program_ptr + 1, program) {
+            Ok(i) => context.program_ptr = i,
             Err(_) => {
-                state.status = ExecutionStatus::Error("'[' missing corresponding ']'".to_string())
+                context.status = ExecutionStatus::Error("'[' missing corresponding ']'".to_string())
             }
-        },
-        _ => state.loop_stack.push(state.program_ptr),
+        };
+    } else {
+       context.loop_stack.push(context.program_ptr);
     }
 }
 
-fn loop_exit(state: &mut State) {
-    match (state.loop_stack.pop(), state.data[state.data_ptr]) {
-        (Some(_), 0) => state.program_ptr += 1,
-        (Some(ptr_loc), _) => state.program_ptr = ptr_loc,
+fn loop_exit(context: &mut ExecutionContext) {
+    match (context.loop_stack.pop(), context.data[context.data_ptr]) {
+        (Some(_), 0) => context.program_ptr += 1,
+        (Some(ptr_loc), _) => context.program_ptr = ptr_loc,
         (None, _) => {
-            state.status = ExecutionStatus::Error("']' missing corresponding '['".to_string())
+            context.status = ExecutionStatus::Error("']' missing corresponding '['".to_string())
         }
     }
 }
@@ -180,44 +181,44 @@ mod test {
     #[test]
     fn test_pointer_increment() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = State::new(&mut buffer);
-        pointer_increment(&mut state);
-        assert_eq!(1, state.data_ptr);
-        assert_eq!(vec![0, 0], state.data);
+        let mut context = ExecutionContext::new(&mut buffer);
+        pointer_increment(&mut context);
+        assert_eq!(1, context.data_ptr);
+        assert_eq!(vec![0, 0], context.data);
     }
 
     #[test]
     fn test_pointer_decrement() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = State::new(&mut buffer);
-        pointer_decrement(&mut state);
-        assert_eq!(0, state.data_ptr);
-        assert_eq!(vec![0, 0], state.data);
+        let mut context = ExecutionContext::new(&mut buffer);
+        pointer_decrement(&mut context);
+        assert_eq!(0, context.data_ptr);
+        assert_eq!(vec![0, 0], context.data);
     }
 
     #[test]
     fn test_value_increment() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = State::new(&mut buffer);
-        value_increment(&mut state);
-        assert_eq!(1, state.data[state.data_ptr]);
+        let mut context = ExecutionContext::new(&mut buffer);
+        value_increment(&mut context);
+        assert_eq!(1, context.data[context.data_ptr]);
     }
 
     #[test]
     fn test_value_increment_with_overflow() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = State::new(&mut buffer);
-        state.data[state.data_ptr] = 255;
-        value_increment(&mut state);
-        assert_eq!(0, state.data[state.data_ptr]);
+        let mut context = ExecutionContext::new(&mut buffer);
+        context.data[context.data_ptr] = 255;
+        value_increment(&mut context);
+        assert_eq!(0, context.data[context.data_ptr]);
     }
 
     #[test]
     fn test_value_decrement_with_underflow() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = State::new(&mut buffer);
-        value_decrement(&mut state);
-        assert_eq!(255, state.data[state.data_ptr]);
+        let mut context = ExecutionContext::new(&mut buffer);
+        value_decrement(&mut context);
+        assert_eq!(255, context.data[context.data_ptr]);
     }
 
     #[test]
