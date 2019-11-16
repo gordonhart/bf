@@ -1,5 +1,6 @@
 # Interactive BrainF\*ck Interpreter
 [![Build Status](https://travis-ci.com/gordonhart/bfi.svg?branch=master)](https://travis-ci.com/gordonhart/bfi)
+[![codecov](https://codecov.io/gh/gordonhart/bfi/branch/master/graph/badge.svg)](https://codecov.io/gh/gordonhart/bfi)
 
 Are you tired of writing Python and JS at your day job? Looking to learn a
 lower-level language but dreading leaving the comforts of your REPL? Well, your

@@ -18,13 +18,11 @@ pub struct State<'a> {
 
 impl<'a> std::fmt::Debug for State<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "State:\n\
-            \tdata: {:?}\n\
-            \tdata_ptr: {:?}\n\
-            \tprogram_ptr: {:?}\n\
-            \tloop_stack: {:?}\n\
-            \tstatus: {:?}",
-            self.data, self.data_ptr, self.program_ptr, self.loop_stack, self.status)
+        write!(f, "{:>11} {:?}\n", "data", self.data)?;
+        write!(f, "{:>11} {:?}\n", "data_ptr", self.data_ptr)?;
+        write!(f, "{:>11} {:?}\n", "program_ptr", self.program_ptr)?;
+        write!(f, "{:>11} {:?}\n", "loop_stack", self.loop_stack)?;
+        write!(f, "{:>11} {:?}", "status", self.status)
     }
 }
 
