@@ -13,9 +13,9 @@ fn get_exe() -> PathBuf {
     root.join("bf")
 }
 
-fn test_program(prog: &str, input: &str, output: &str) {
+fn test_program(args: Vec<&str>, input: &str, output: &str) {
     let mut child = Command::new(&get_exe())
-        .arg(prog)
+        .args(args)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .spawn()
@@ -36,7 +36,7 @@ fn test_program(prog: &str, input: &str, output: &str) {
 #[test]
 fn test_hello_world() {
     test_program(
-        "+[-->-[>>+>-----<<]<--<---]>-.>>>+.>>..+++[.>]<<<<.+++.------.<<-.>>>>+.",
+        vec!["+[-->-[>>+>-----<<]<--<---]>-.>>>+.>>..+++[.>]<<<<.+++.------.<<-.>>>>+."],
         "",
         "Hello, World!",
     );
@@ -45,10 +45,10 @@ fn test_hello_world() {
 #[test]
 fn test_hello_world2() {
     test_program(
-        "
+        vec!["
 >++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<
 +++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------
-------.>>.+++.------.--------.>+.>+.",
+------.>>.+++.------.--------.>+.>+."],
         "",
         "Hello World!\n",
     );
@@ -60,7 +60,7 @@ fn test_squares() {
     let mut expected_result = expected_result_vec.join("\n");
     expected_result.push('\n');
     test_program(
-        "
+        vec!["
 ++++[>+++++<-]>[<+++++>-]+<+[
     >[>+>+<<-]++>>[<<+>>-]>>>[-]++>[-]+
     >>>+[[-]++++++>>>]<<<[[<++++++++<++>>-]+<.<[>----<-]<]
@@ -68,7 +68,7 @@ fn test_squares() {
 ]
 [Outputs square numbers from 0 to 10000.
 Daniel B Cristofani (cristofdathevanetdotcom)
-http://www.hevanet.com/cristofd/brainfuck/]",
+http://www.hevanet.com/cristofd/brainfuck/]"],
         "",
         expected_result.as_str(),
     );
@@ -77,11 +77,10 @@ http://www.hevanet.com/cristofd/brainfuck/]",
 #[test]
 fn test_cat() {
     let some_str: &str = "Some testing string!\n";
-    test_program(",[.[-],]", some_str, some_str);
+    test_program(vec![",[.[-],]"], some_str, some_str);
 }
 
 #[test]
-#[ignore]
 fn test_cat2() {
-    test_program(",[.[-],]", "😸", "😸");
+    test_program(vec!["--utf8", ",[.[-],]"], "😸", "😸");
 }

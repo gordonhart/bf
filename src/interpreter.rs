@@ -1,11 +1,12 @@
 use std::io::Read;
 
-use crate::buffer::{Buffer, ASCIICharBuffer};
+use crate::buffer::Buffer;
 use crate::repl;
 use crate::token::Token;
 
+// TODO: figure out why these derive macros fail with E0495:
+// cannot infer an appropriate lifetime for lifetime parameter `'a` due to conflicting requirements
 // #[derive(Debug, PartialEq)]
-// #[derive(Debug)]
 pub struct State<'a> {
     pub data: Vec<u8>,
     pub data_ptr: usize,
@@ -15,14 +16,30 @@ pub struct State<'a> {
     pub buffer: &'a mut dyn Buffer,
 }
 
-/*
-impl<'a> std::fmt::Display<'a> for State<'a> {
-    fn fmt(&'a self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "State");
+impl<'a> std::fmt::Debug for State<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "State:\n\
+            \tdata: {:?}\n\
+            \tdata_ptr: {:?}\n\
+            \tprogram_ptr: {:?}\n\
+            \tloop_stack: {:?}\n\
+            \tstatus: {:?}",
+            self.data, self.data_ptr, self.program_ptr, self.loop_stack, self.status)
     }
 }
-*/
 
+impl<'a> State<'a> {
+    pub fn new<'b>(buffer: &'b mut dyn Buffer) -> State<'b> {
+        State {
+            data: vec![0],
+            data_ptr: 0,
+            program_ptr: 0,
+            loop_stack: vec![],
+            status: ExecutionStatus::NotStarted,
+            buffer: buffer,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ExecutionStatus<T> {
@@ -84,7 +101,7 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::GetChar => get_character(state),
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
-        Token::DebugDump => eprintln!("nothing"), // eprintln!("{:?}", state),
+        Token::DebugDump => eprintln!("{:?}", state),
         Token::DebugBreakpoint => repl::run(state),
     };
     match command {
@@ -168,22 +185,13 @@ fn loop_exit(state: &mut State) {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::buffer::ASCIICharBuffer;
 
-    fn get_blank_state(buffer: &mut dyn Buffer) -> State {
-        State {
-            data: vec![0],
-            data_ptr: 0,
-            program_ptr: 0,
-            loop_stack: vec![],
-            status: ExecutionStatus::NotStarted,
-            buffer: buffer,
-        }
-    }
 
     #[test]
     fn test_pointer_increment() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = get_blank_state(&mut buffer);
+        let mut state = State::new(&mut buffer);
         pointer_increment(&mut state);
         assert_eq!(1, state.data_ptr);
         assert_eq!(vec![0, 0], state.data);
@@ -192,7 +200,7 @@ mod test {
     #[test]
     fn test_pointer_decrement() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = get_blank_state(&mut buffer);
+        let mut state = State::new(&mut buffer);
         pointer_decrement(&mut state);
         assert_eq!(0, state.data_ptr);
         assert_eq!(vec![0, 0], state.data);
@@ -201,7 +209,7 @@ mod test {
     #[test]
     fn test_value_increment() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = get_blank_state(&mut buffer);
+        let mut state = State::new(&mut buffer);
         value_increment(&mut state);
         assert_eq!(1, state.data[state.data_ptr]);
     }
@@ -209,7 +217,7 @@ mod test {
     #[test]
     fn test_value_increment_with_overflow() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = get_blank_state(&mut buffer);
+        let mut state = State::new(&mut buffer);
         state.data[state.data_ptr] = 255;
         value_increment(&mut state);
         assert_eq!(0, state.data[state.data_ptr]);
@@ -218,7 +226,7 @@ mod test {
     #[test]
     fn test_value_decrement_with_underflow() {
         let mut buffer = ASCIICharBuffer {};
-        let mut state = get_blank_state(&mut buffer);
+        let mut state = State::new(&mut buffer);
         value_decrement(&mut state);
         assert_eq!(255, state.data[state.data_ptr]);
     }

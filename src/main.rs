@@ -11,6 +11,7 @@ static PROGRAM_ARG: &'static str = "program";
 static VERBOSE_ARG: &'static str = "verbose";
 static FILE_ARG: &'static str = "file";
 static UTF8_FLAG: &'static str = "utf8";
+static UNBUFFERED_FLAG: &'static str = "unbuffered";
 
 // explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {
@@ -45,6 +46,12 @@ fn get_command_line_args() -> ArgMatches<'static> {
                 .takes_value(false)
                 .help("Use 8-bit Unicode output encoding"),
         )
+        .arg(
+            Arg::with_name(UNBUFFERED_FLAG)
+                .long("unbuffered")
+                .takes_value(false)
+                .help("Do not buffer output"),
+        )
         .get_matches()
 }
 
@@ -65,10 +72,15 @@ fn main() {
         _ => panic!("bf: argument error"),
     };
 
-    // let mut buffer = buffer::ASCIICharBuffer {};
-    // let mut buffer = buffer::ASCIILineBuffer {};
-    let mut buffer = buffer::UTF8CharBuffer::new();
-    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut buffer);
+    let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
+    // let mut buffer = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
+        (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
+        (_, true) => Box::new(buffer::ASCIICharBuffer {}),
+        (_, false) => Box::new(buffer::ASCIILineBuffer {}),
+    };
+
+    // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
+    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
 
     let retcode: i32 = match program_state_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
