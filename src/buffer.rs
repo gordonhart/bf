@@ -1,7 +1,7 @@
 use std::io::Write;
 
 pub trait Buffer {
-    fn put_byte(&self, byte: u8);
+    fn put_byte(&mut self, byte: u8);
 }
 
 impl std::fmt::Debug for dyn Buffer {
@@ -19,7 +19,7 @@ impl PartialEq for dyn Buffer {
 #[derive(Debug, PartialEq)]
 pub struct ASCIICharBuffer {}
 impl Buffer for ASCIICharBuffer {
-    fn put_byte(&self, byte: u8) {
+    fn put_byte(&mut self, byte: u8) {
         print!("{}", byte as char);
         std::io::stdout().flush().expect("unable to flush stdout");
     }
@@ -28,7 +28,7 @@ impl Buffer for ASCIICharBuffer {
 #[derive(Debug, PartialEq)]
 pub struct ASCIILineBuffer {}
 impl Buffer for ASCIILineBuffer {
-    fn put_byte(&self, byte: u8) {
+    fn put_byte(&mut self, byte: u8) {
         let c = byte as char;
         print!("{}", c);
         if c == '\n' {
@@ -41,9 +41,15 @@ impl Buffer for ASCIILineBuffer {
 pub struct UTF8CharBuffer {
     buffer: Vec<u8>,
 }
-/*
+
+impl UTF8CharBuffer {
+    pub fn new() -> UTF8CharBuffer {
+        UTF8CharBuffer { buffer: Vec::new() }
+    }
+}
+
 impl Buffer for UTF8CharBuffer {
-    fn put_byte(&self, byte: u8) {
+    fn put_byte(&mut self, byte: u8) {
         self.buffer.push(byte);
         match std::str::from_utf8(&self.buffer) {
             Ok(c) => {
@@ -55,7 +61,6 @@ impl Buffer for UTF8CharBuffer {
         }
     }
 }
-*/
 
 #[derive(Debug, PartialEq)]
 pub struct FileBuffer {}

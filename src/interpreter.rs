@@ -1,18 +1,28 @@
 use std::io::Read;
 
-use crate::buffer::{Buffer, ASCIICharBuffer, ASCIILineBuffer, UTF8CharBuffer};
+use crate::buffer::{Buffer, ASCIICharBuffer};
 use crate::repl;
 use crate::token::Token;
 
-#[derive(Debug, PartialEq)]
-pub struct State {
+// #[derive(Debug, PartialEq)]
+// #[derive(Debug)]
+pub struct State<'a> {
     pub data: Vec<u8>,
     pub data_ptr: usize,
     pub program_ptr: usize,
     pub loop_stack: Vec<usize>,
     pub status: ExecutionStatus<String>,
-    pub buffer: &'static (dyn Buffer + 'static),  // TODO: 'static is a cop-out
+    pub buffer: &'a mut dyn Buffer,
 }
+
+/*
+impl<'a> std::fmt::Display<'a> for State<'a> {
+    fn fmt(&'a self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "State");
+    }
+}
+*/
+
 
 #[derive(Debug, PartialEq)]
 pub enum ExecutionStatus<T> {
@@ -22,14 +32,14 @@ pub enum ExecutionStatus<T> {
     Error(T),
 }
 
-pub fn run(program: &str) -> State {
+pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> State<'a> {
     let mut state = State {
         data: vec![0], // Vec::with_capacity(HEAP_SIZE),
         data_ptr: 0,
         program_ptr: 0,
         loop_stack: vec![],
         status: ExecutionStatus::NotStarted,
-        buffer: &ASCIICharBuffer {},
+        buffer: buffer,
     };
     match parse_program(program) {
         Ok(parsed_program) => run_program(&mut state, &parsed_program),
@@ -74,7 +84,7 @@ pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
         Token::GetChar => get_character(state),
         Token::LoopBeg => loop_enter(state, program),
         Token::LoopEnd => loop_exit(state),
-        Token::DebugDump => eprintln!("{:?}", state),
+        Token::DebugDump => eprintln!("nothing"), // eprintln!("{:?}", state),
         Token::DebugBreakpoint => repl::run(state),
     };
     match command {
@@ -159,20 +169,21 @@ fn loop_exit(state: &mut State) {
 mod test {
     use super::*;
 
-    fn get_blank_state() -> State {
+    fn get_blank_state(buffer: &mut dyn Buffer) -> State {
         State {
             data: vec![0],
             data_ptr: 0,
             program_ptr: 0,
             loop_stack: vec![],
             status: ExecutionStatus::NotStarted,
-            buffer: &ASCIICharBuffer {},
+            buffer: buffer,
         }
     }
 
     #[test]
     fn test_pointer_increment() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = get_blank_state(&mut buffer);
         pointer_increment(&mut state);
         assert_eq!(1, state.data_ptr);
         assert_eq!(vec![0, 0], state.data);
@@ -180,7 +191,8 @@ mod test {
 
     #[test]
     fn test_pointer_decrement() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = get_blank_state(&mut buffer);
         pointer_decrement(&mut state);
         assert_eq!(0, state.data_ptr);
         assert_eq!(vec![0, 0], state.data);
@@ -188,14 +200,16 @@ mod test {
 
     #[test]
     fn test_value_increment() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = get_blank_state(&mut buffer);
         value_increment(&mut state);
         assert_eq!(1, state.data[state.data_ptr]);
     }
 
     #[test]
     fn test_value_increment_with_overflow() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = get_blank_state(&mut buffer);
         state.data[state.data_ptr] = 255;
         value_increment(&mut state);
         assert_eq!(0, state.data[state.data_ptr]);
@@ -203,7 +217,8 @@ mod test {
 
     #[test]
     fn test_value_decrement_with_underflow() {
-        let mut state = get_blank_state();
+        let mut buffer = ASCIICharBuffer {};
+        let mut state = get_blank_state(&mut buffer);
         value_decrement(&mut state);
         assert_eq!(255, state.data[state.data_ptr]);
     }

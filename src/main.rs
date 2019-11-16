@@ -65,7 +65,11 @@ fn main() {
         _ => panic!("bf: argument error"),
     };
 
-    let program_state_after_execution = interpreter::run(program_string.as_str());
+    // let mut buffer = buffer::ASCIICharBuffer {};
+    // let mut buffer = buffer::ASCIILineBuffer {};
+    let mut buffer = buffer::UTF8CharBuffer::new();
+    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut buffer);
+
     let retcode: i32 = match program_state_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
