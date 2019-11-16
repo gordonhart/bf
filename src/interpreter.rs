@@ -50,14 +50,7 @@ pub enum ExecutionStatus<T> {
 }
 
 pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> State<'a> {
-    let mut state = State {
-        data: vec![0], // Vec::with_capacity(HEAP_SIZE),
-        data_ptr: 0,
-        program_ptr: 0,
-        loop_stack: vec![],
-        status: ExecutionStatus::NotStarted,
-        buffer: buffer,
-    };
+    let mut state = State::new(buffer);
     match parse_program(program) {
         Ok(parsed_program) => run_program(&mut state, &parsed_program),
         Err(err) => state.status = ExecutionStatus::Error(err),
@@ -186,7 +179,6 @@ fn loop_exit(state: &mut State) {
 mod test {
     use super::*;
     use crate::buffer::ASCIICharBuffer;
-
 
     #[test]
     fn test_pointer_increment() {
