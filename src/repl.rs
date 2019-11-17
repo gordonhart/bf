@@ -18,7 +18,10 @@ Commands:
     );
 
     'repl: loop {
-        let input_line = rl.readline("bfi $ ").expect("bfi: unable to read input");
+        let input_line = match rl.readline("bfi $ ") {
+            Ok(line) => line,
+            Err(_) => break 'repl, // EOF, SIGINT, other error -- exit
+        };
         if input_line == "q" {
             context.status = interpreter::ExecutionStatus::Terminated;
             break 'repl;
@@ -38,6 +41,6 @@ Commands:
                 }
                 Err(e) => println!("{:?}", e),
             }
-        }
+        };
     }
 }
