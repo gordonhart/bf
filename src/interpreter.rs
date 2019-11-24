@@ -1,22 +1,19 @@
-use std::io::Read;
+use std::io::{Read, Write};
 
-use crate::buffer::Buffer;
-use crate::repl;
+use crate::repl::{self, REPLResult};
 use crate::token::Token;
 
-// TODO: figure out why these derive macros fail with E0495:
-// cannot infer an appropriate lifetime for lifetime parameter `'a` due to conflicting requirements
 // #[derive(Debug, PartialEq)]
-pub struct State<'a> {
+pub struct State {
     pub data: Vec<u8>,
     pub data_ptr: usize,
+    pub program: Vec<Token>,
     pub program_ptr: usize,
     pub loop_stack: Vec<usize>,
     pub status: ExecutionStatus<String>,
-    pub buffer: &'a mut dyn Buffer,
 }
 
-impl<'a> std::fmt::Debug for State<'a> {
+impl std::fmt::Debug for State {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "State:\n\
             \tdata: {:?}\n\
@@ -28,79 +25,85 @@ impl<'a> std::fmt::Debug for State<'a> {
     }
 }
 
-impl<'a> State<'a> {
-    pub fn new<'b>(buffer: &'b mut dyn Buffer) -> State<'b> {
+impl State {
+    pub fn new() -> State {
         State {
             data: vec![0],
             data_ptr: 0,
+            program: vec![],
             program_ptr: 0,
             loop_stack: vec![],
             status: ExecutionStatus::NotStarted,
-            buffer: buffer,
         }
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum ExecutionStatus<T> {
     NotStarted,
     InProgress,
+    Interactive(repl::Instance),
     Terminated,
-    Error(T),
+    ProgramError(T),
+    InternalError(T),
 }
 
-pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> State<'a> {
-    let mut state = State::new(buffer);
-    match parse_program(program) {
-        Ok(parsed_program) => run_program(&mut state, &parsed_program),
-        Err(err) => state.status = ExecutionStatus::Error(err),
+pub fn run(program: &str, mut buffer: impl Write) -> State {
+    let mut state = State::new();
+    state.status = ExecutionStatus::InProgress;
+    match Token::parse_str(program) {
+        Ok(parsed_program) => {
+            state.program = parsed_program;
+            run_program(&mut state, buffer);
+        },
+        Err(err) => state.status = ExecutionStatus::ProgramError(err),
     };
     state
 }
 
-pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
-    program
-        .chars()
-        .map(|c| Token::decode(c))
-        .filter(|t_res| t_res.is_ok())
-        .collect()
+pub fn run_program(state: &mut State, mut buffer: impl Write) {
+    match &mut state.status {
+        ExecutionStatus::Terminated | ExecutionStatus::ProgramError(_) | ExecutionStatus::InternalError(_) => return,
+        ExecutionStatus::Interactive(repl_instance) => {
+            match &mut repl_instance.get() {
+                REPLResult::Program(p) => {
+                    state.program = Token::parse_str(p.as_str()).unwrap();
+                    run_program(state, &mut buffer);
+                },
+                REPLResult::Break => state.status = ExecutionStatus::InProgress,
+                REPLResult::Terminate => state.status = ExecutionStatus::Terminated,
+                REPLResult::Error(e) => state.status = ExecutionStatus::InternalError(e.to_string()),
+            };
+        },
+        _ => state.execute_command(&mut buffer)
+    };
+    run_program(state, &mut buffer);
 }
 
-pub fn run_program(state: &mut State, program: &Vec<Token>) {
-    state.status = ExecutionStatus::InProgress;
-    loop {
-        match state.status {
-            ExecutionStatus::Terminated | ExecutionStatus::Error(_) => break,
-            _ => {}
-        };
-        match program.get(state.program_ptr) {
-            Some(command) => run_command(state, &command, program),
-            None => break,
-        };
+impl State {
+    // TODO: return result
+    pub fn execute_command(&mut self, mut buffer: impl Write) {
+        if let Some(command) = self.program.get(self.program_ptr) {
+            match command {
+                Token::PtrInc => pointer_increment(self),
+                Token::PtrDec => pointer_decrement(self),
+                Token::ValInc => value_increment(self),
+                Token::ValDec => value_decrement(self),
+                Token::PutChar => put_character(self, &mut buffer),
+                Token::GetChar => get_character(self),
+                Token::LoopBeg => loop_enter(self),
+                Token::LoopEnd => loop_exit(self),
+                Token::DebugDump => eprintln!("{:?}", self),
+                Token::DebugBreakpoint => self.status = ExecutionStatus::Interactive(repl::Instance::new()),
+            };
+            match command {
+                Token::LoopEnd => {} // special case that sets the program pointer itself
+                _ => self.program_ptr += 1,
+            };
+        } else {
+            self.status = ExecutionStatus::Terminated;
+        }
     }
-    match state.status {
-        ExecutionStatus::Error(_) => {}
-        _ => state.status = ExecutionStatus::Terminated,
-    }
-}
-
-pub fn run_command(state: &mut State, command: &Token, program: &Vec<Token>) {
-    match command {
-        Token::PtrInc => pointer_increment(state),
-        Token::PtrDec => pointer_decrement(state),
-        Token::ValInc => value_increment(state),
-        Token::ValDec => value_decrement(state),
-        Token::PutChar => state.buffer.put_byte(state.data[state.data_ptr]),
-        Token::GetChar => get_character(state),
-        Token::LoopBeg => loop_enter(state, program),
-        Token::LoopEnd => loop_exit(state),
-        Token::DebugDump => eprintln!("{:?}", state),
-        Token::DebugBreakpoint => repl::run(state),
-    };
-    match command {
-        Token::LoopEnd => {} // special case that sets the program pointer itself
-        _ => state.program_ptr += 1,
-    };
 }
 
 fn pointer_increment(state: &mut State) {
@@ -130,6 +133,10 @@ fn value_decrement(state: &mut State) {
     }
 }
 
+fn put_character(state: &mut State, mut buffer: impl Write) {
+    buffer.write(&state.data[state.data_ptr..state.data_ptr]);
+}
+
 fn get_character(state: &mut State) {
     match std::io::stdin()
         .bytes()
@@ -153,12 +160,12 @@ fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
     }
 }
 
-fn loop_enter(state: &mut State, program: &Vec<Token>) {
+fn loop_enter(state: &mut State) {
     match state.data[state.data_ptr] {
-        0 => match find_loop_end(state.program_ptr + 1, program) {
+        0 => match find_loop_end(state.program_ptr + 1, &state.program) {
             Ok(i) => state.program_ptr = i,
             Err(_) => {
-                state.status = ExecutionStatus::Error("'[' missing corresponding ']'".to_string())
+                state.status = ExecutionStatus::ProgramError("'[' missing corresponding ']'".to_string())
             }
         },
         _ => state.loop_stack.push(state.program_ptr),
@@ -170,7 +177,7 @@ fn loop_exit(state: &mut State) {
         (Some(_), 0) => state.program_ptr += 1,
         (Some(ptr_loc), _) => state.program_ptr = ptr_loc,
         (None, _) => {
-            state.status = ExecutionStatus::Error("']' missing corresponding '['".to_string())
+            state.status = ExecutionStatus::ProgramError("']' missing corresponding '['".to_string())
         }
     }
 }

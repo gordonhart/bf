@@ -2,45 +2,44 @@ extern crate rustyline;
 
 use rustyline::Editor;
 
-use crate::interpreter;
+// TODO: probably shouldn't use the word 'Result' here
+pub enum REPLResult<T> {
+    Break,
+    Terminate,
+    Program(String),
+    Error(T),
+}
 
-pub fn run(state: &mut interpreter::State) {
-    let mut rl = Editor::<()>::new();
+#[derive(Debug)]
+pub struct Instance {
+    editor: Editor<()>,
+}
 
-    println!(
-        "\
-You have entered an interactive session. All regular commands are available.
+impl Instance {
+    pub fn new() -> Self {
+        println!(
+            "\
+    You have entered an interactive session. All regular commands are available.
 
-Commands:
-    'c' : Continue execution at the command following this breakpoint
-    'q' : Exit interpreter
-"
-    );
+    Commands:
+        'c' : Continue execution at the command following this breakpoint
+        'q' : Exit interpreter
+    "
+        );
 
-    'repl: loop {
-        let input_line = rl.readline("bfi $ ");
-        match input_line {
-            Ok(line) if line == "q" => {
-                state.status = interpreter::ExecutionStatus::Terminated;
-                break 'repl;
-            }
-            Ok(line) if line == "c" => break 'repl,
-            Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                let new_program = interpreter::parse_program(line.as_str());
-                match new_program {
-                    Ok(program) => {
-                        let prev_program_ptr = state.program_ptr;
-                        state.program_ptr = 0;
-                        interpreter::run_program(state, &program);
-                        state.program_ptr = prev_program_ptr;
-                    }
-                    Err(e) => println!("{:?}", e),
-                }
-            }
-            Err(e) => println!("{:?}", e),
-        }
+        Instance { editor: Editor::<()>::new() }
     }
 
-    state.program_ptr += 1;
+    pub fn get(&mut self) -> REPLResult<String> {
+        let input_line = self.editor.readline("bfi $ ");
+        match input_line {
+            Ok(line) if line == "q" => REPLResult::Terminate,
+            Ok(line) if line == "c" => REPLResult::Break,
+            Ok(line) => {
+                self.editor.add_history_entry(line.as_str());
+                REPLResult::Program(line)
+            },
+            Err(e) => REPLResult::Error(format!("{}", e)),
+        }
+    }
 }

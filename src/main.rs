@@ -2,7 +2,6 @@ extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
 
-mod buffer;
 mod interpreter;
 mod repl;
 mod token;
@@ -72,15 +71,17 @@ fn main() {
         _ => panic!("bfi: argument error"),
     };
 
+    /*
     let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
     // let mut buffer = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
         (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
         (_, true) => Box::new(buffer::ASCIICharBuffer {}),
         (_, false) => Box::new(buffer::ASCIILineBuffer {}),
     };
+    */
 
     // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
-    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
+    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut std::io::stdout());
 
     let retcode: i32 = match program_state_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
@@ -89,7 +90,7 @@ fn main() {
             };
             0
         }
-        interpreter::ExecutionStatus::Error(err) => {
+        interpreter::ExecutionStatus::ProgramError(err) => {
             eprintln!("bfi: exited with error: {}", err);
             1
         }

@@ -45,6 +45,13 @@ impl Token {
             other => Err(format!("unsupported character: {}", other)),
         }
     }
+
+    pub fn parse_str(s: &str) -> Result<Vec<Self>, String> {
+        s.chars()
+            .map(|c| Token::decode(c))
+            .filter(|t_res| t_res.is_ok())
+            .collect()
+    }
 }
 
 impl fmt::Display for Token {
