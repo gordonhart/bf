@@ -4,7 +4,7 @@ use rustyline::Editor;
 
 use crate::interpreter;
 
-pub fn run(state: &mut interpreter::State) {
+pub fn run(context: &mut interpreter::ExecutionContext) {
     let mut rl = Editor::<()>::new();
 
     println!(
@@ -18,29 +18,29 @@ Commands:
     );
 
     'repl: loop {
-        let input_line = rl.readline("bfi $ ");
-        match input_line {
-            Ok(line) if line == "q" => {
-                state.status = interpreter::ExecutionStatus::Terminated;
-                break 'repl;
-            }
-            Ok(line) if line == "c" => break 'repl,
-            Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                let new_program = interpreter::parse_program(line.as_str());
-                match new_program {
-                    Ok(program) => {
-                        let prev_program_ptr = state.program_ptr;
-                        state.program_ptr = 0;
-                        interpreter::run_program(state, &program);
-                        state.program_ptr = prev_program_ptr;
-                    }
-                    Err(e) => println!("{:?}", e),
+        let input_line = match rl.readline("bfi $ ") {
+            Ok(line) => line,
+            Err(_) => break 'repl, // EOF, SIGINT, other error -- exit
+        };
+        if input_line == "q" {
+            context.status = interpreter::ExecutionStatus::Terminated;
+            break 'repl;
+        } else if input_line == "c" {
+            break 'repl;
+        } else {
+            rl.add_history_entry(input_line.as_str());
+            let new_program = interpreter::parse_program(input_line.as_str());
+            match new_program {
+                Ok(program) => {
+                    let prev_program_ptr = context.program_ptr;
+                    let prev_execution_status = context.status.clone();
+                    context.program_ptr = 0;
+                    interpreter::run_program(context, &program);
+                    context.program_ptr = prev_program_ptr;
+                    context.status = prev_execution_status;
                 }
+                Err(e) => println!("{:?}", e),
             }
-            Err(e) => println!("{:?}", e),
-        }
+        };
     }
-
-    state.program_ptr += 1;
 }

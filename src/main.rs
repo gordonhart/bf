@@ -72,17 +72,17 @@ fn main() {
         _ => panic!("bfi: argument error"),
     };
 
-    let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
-    // let mut buffer = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
+    let mut buffer: Box<dyn buffer::Buffer> = match
+        (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG))
+    {
         (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
         (_, true) => Box::new(buffer::ASCIICharBuffer {}),
         (_, false) => Box::new(buffer::ASCIILineBuffer {}),
     };
 
-    // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
-    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
+    let program_context_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
 
-    let retcode: i32 = match program_state_after_execution.status {
+    let retcode: i32 = match program_context_after_execution.status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
                 eprintln!("bfi: terminated without errors");
