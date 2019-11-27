@@ -1,10 +1,20 @@
-use std::fmt::Debug;
 use std::io::{self, Read, Write};
+
+
 
 /// Basic context using stdin and stdout impls for Read, Write
 pub struct StdIOContext {
     input: io::Stdin,
     output: io::Stdout,  // bf does not support stderr
+}
+
+impl StdIOContext {
+    fn new() -> Self {
+        StdIOContext {
+            input: io::stdin(),
+            output: io::stdout(),
+        }
+    }
 }
 
 impl Read for StdIOContext {
@@ -23,6 +33,9 @@ impl Write for StdIOContext {
     }
 }
 
+
+
+/// Struct wrapper for u8 vector implementing Read, Write traits
 pub struct ByteBuf {
     buf: Vec<u8>,
 }
@@ -47,6 +60,10 @@ impl Write for ByteBuf {
     }
 }
 
+
+
+/// IOContext supporting reading from input buffer, writing to output buffer, both of which
+/// individually support both Read, Write or use in testing or other non-production environments
 pub struct MockIOContext {
     input: ByteBuf,
     output: ByteBuf,
@@ -67,7 +84,6 @@ impl Read for MockIOContext {
     }
 }
 
-// TODO: figure out how to not duplicate this with StdIOContext's impl
 impl Write for MockIOContext {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.output.write(buf)
@@ -76,40 +92,4 @@ impl Write for MockIOContext {
     fn flush(&mut self) -> io::Result<()> {
         self.output.flush()
     }
-}
-
-fn test<T: Read + Write>(ctx: &mut T) {
-    ctx.write(&b"123"[..]);
-}
-
-fn main() -> io::Result<()> {
-    // let mut ctx = IOContext::using_stds();
-    /*
-    let o: Vec<u8> = Vec::new();
-    let mut ctx = IOContext {
-        input: Box::new(std::io::stdin()),
-        output: Box::new(o),
-        errput: Box::new(std::io::stderr()),
-    };
-    // let o: &Vec<u8> = &(*ctx.output);
-    // println!("{:?}", ctx.input.read_to_end()?);
-    test(&mut ctx);
-    let o2: Vec<u8> = *ctx.output;
-    // println!("{:?}", ctx.input.read_to_end()?);
-    println!("{:?}", o2);
-    */
-
-    let mut ctx = StdIOContext {
-        input: std::io::stdin(),
-        output: std::io::stdout(),
-    };
-    ctx.write(&b"test"[..]);
-
-    let mut mockctx = MockIOContext::new();
-    mockctx.input.buf.push(123);
-    let mut o: Vec<u8> = Vec::new();
-    mockctx.read_to_end(&mut o)?;
-    println!("{:?}", o);
-
-    Ok(())
 }
