@@ -46,11 +46,8 @@ impl Token {
         }
     }
 
-    pub fn parse_str(s: &str) -> Result<Vec<Self>, String> {
-        s.chars()
-            .map(|c| Token::decode(c))
-            .filter(|t_res| t_res.is_ok())
-            .collect()
+    pub fn parse_str(s: &str) -> Vec<Self> {
+        s.chars().filter_map(|c| Token::decode(c).ok()).collect()
     }
 }
 
@@ -64,7 +61,7 @@ impl fmt::Display for Token {
 mod test {
     use super::*;
 
-    const CHARS: [char; 10] = ['>', '<', '+', '-', '.', ',', '[', ']', '?', '!'];
+    const SYMBOLS: &str = "><+-.,[]?!";
     const TOKENS: [Token; 10] = [
         Token::PtrInc,
         Token::PtrDec,
@@ -80,7 +77,7 @@ mod test {
 
     #[test]
     fn decoding() {
-        for (&c, &t) in CHARS.into_iter().zip(TOKENS.into_iter()) {
+        for (c, &t) in SYMBOLS.chars().zip(TOKENS.into_iter()) {
             let decoded: Result<Token, String> = Token::decode(c);
             assert_eq!(decoded.is_ok(), true);
             assert_eq!(decoded.unwrap(), t);
@@ -89,7 +86,7 @@ mod test {
 
     #[test]
     fn encoding() {
-        for (&c, &t) in CHARS.into_iter().zip(TOKENS.into_iter()) {
+        for (c, &t) in SYMBOLS.chars().zip(TOKENS.into_iter()) {
             assert_eq!(Token::encode(t), c);
         }
     }

@@ -2,6 +2,7 @@ extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
 
+mod ioctx;
 mod interpreter;
 mod repl;
 mod token;
@@ -17,40 +18,30 @@ fn get_command_line_args() -> ArgMatches<'static> {
     App::new("bfi")
         .version("0.1")
         .about("BrainF*ck language interpreter")
-        .arg(
-            Arg::with_name(PROGRAM_ARG)
-                .help("Program to execute")
-                .conflicts_with(FILE_ARG)
-                .index(1),
-        )
-        .arg(
-            Arg::with_name(VERBOSE_ARG)
-                .short("v")
-                .long("verbose")
-                .help("Toggle high verbosity"),
-        )
-        .arg(
-            Arg::with_name(FILE_ARG)
-                .short("f")
-                .long("file")
-                .takes_value(true)
-                .value_name("FILE")
-                .conflicts_with(PROGRAM_ARG)
-                .help("Program file to execute"),
-        )
-        .arg(
-            Arg::with_name(UTF8_FLAG)
-                .short("u")
-                .long("utf8")
-                .takes_value(false)
-                .help("Use 8-bit Unicode output encoding"),
-        )
-        .arg(
-            Arg::with_name(UNBUFFERED_FLAG)
-                .long("unbuffered")
-                .takes_value(false)
-                .help("Do not buffer output"),
-        )
+        .arg(Arg::with_name(PROGRAM_ARG)
+            .help("Program to execute")
+            .conflicts_with(FILE_ARG)
+            .index(1))
+        .arg(Arg::with_name(VERBOSE_ARG)
+            .short("v")
+            .long("verbose")
+            .help("Toggle high verbosity"))
+        .arg(Arg::with_name(FILE_ARG)
+            .short("f")
+            .long("file")
+            .takes_value(true)
+            .value_name("FILE")
+            .conflicts_with(PROGRAM_ARG)
+            .help("Program file to execute"))
+        .arg(Arg::with_name(UTF8_FLAG)
+            .short("u")
+            .long("utf8")
+            .takes_value(false)
+            .help("Use 8-bit Unicode output encoding"))
+        .arg(Arg::with_name(UNBUFFERED_FLAG)
+            .long("unbuffered")
+            .takes_value(false)
+            .help("Do not buffer output"))
         .get_matches()
 }
 
@@ -80,6 +71,7 @@ fn main() {
     };
     */
 
+    /*
     // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
     let program_state_after_execution = interpreter::run(program_string.as_str(), &mut std::io::stdout());
 
@@ -98,4 +90,7 @@ fn main() {
     };
 
     std::process::exit(retcode);
+    */
+
+    std::process::exit(0);
 }
