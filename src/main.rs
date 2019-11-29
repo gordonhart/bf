@@ -73,10 +73,8 @@ fn main() {
 
     let io_context = get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG));
 
-    let execution_status: interpreter::ExecutionStatus<String> = interpreter::ExecutionContext::new()
-        .with_io_context(io_context)
-        .with_program(program_string.as_str())
-        .execute();
+    let execution_status: interpreter::ExecutionStatus<String> =
+        interpreter::ExecutionContext::new(io_context, program_string.as_str()).execute();
 
     let retcode: i32 = match execution_status {
         interpreter::ExecutionStatus::Terminated => {
