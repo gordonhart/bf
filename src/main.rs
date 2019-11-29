@@ -45,6 +45,14 @@ fn get_command_line_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
+fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::RW> {
+    match (use_utf8, use_unbuffered) {
+        (true, _) => Box::new(ioctx::StdUTF8IOContext::new()),
+        (_, true) => Box::new(ioctx::StdIOContext::new()), // ioctx::StdUnbufferedIOContext::new(),
+        (_, false) => Box::new(ioctx::StdIOContext::new()),
+    }
+}
+
 fn main() {
     let opts = get_command_line_args();
 
@@ -57,25 +65,20 @@ fn main() {
                 std::process::exit(1);
             }
         },
-        (None, None) => "!".to_string(), // default to REPL if no program provided
+        // default to REPL if no program provided
+        (None, None) => "!".to_string(),
         // final arm should never be reached due to mutual `conflicts_with`
         _ => panic!("bfi: argument error"),
     };
 
-    /*
-    let mut buffer: Box<dyn buffer::Buffer> = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
-    // let mut buffer = match (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)) {
-        (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
-        (_, true) => Box::new(buffer::ASCIICharBuffer {}),
-        (_, false) => Box::new(buffer::ASCIILineBuffer {}),
-    };
-    */
+    let io_context = get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG));
 
-    /*
-    // let program_state_after_execution = interpreter::run(program_string.as_str(), &mut Box::into_raw(buffer));
-    let program_state_after_execution = interpreter::run(program_string.as_str(), &mut std::io::stdout());
+    let execution_status: interpreter::ExecutionStatus<String> = interpreter::ExecutionContext::new()
+        .with_io_context(io_context)
+        .with_program(program_string.as_str())
+        .execute();
 
-    let retcode: i32 = match program_state_after_execution.status {
+    let retcode: i32 = match execution_status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
                 eprintln!("bfi: terminated without errors");
@@ -90,7 +93,4 @@ fn main() {
     };
 
     std::process::exit(retcode);
-    */
-
-    std::process::exit(0);
 }

@@ -2,6 +2,11 @@ use std::io::{self, Read, Write};
 
 
 
+pub trait RW: Read + Write {}
+impl<T> RW for T where T: Read + Write {}
+
+
+
 /// Basic context using stdin and stdout impls for Read, Write
 pub struct StdIOContext {
     input: io::Stdin,
@@ -9,8 +14,8 @@ pub struct StdIOContext {
 }
 
 impl StdIOContext {
-    fn new() -> Self {
-        StdIOContext {
+    pub fn new() -> Self {
+        Self {
             input: io::stdin(),
             output: io::stdout(),
         }
@@ -62,6 +67,40 @@ impl Write for ByteBuf {
 
 
 
+pub struct StdUTF8IOContext {
+    input: io::Stdin,
+    output: ByteBuf,
+}
+
+impl StdUTF8IOContext {
+    pub fn new() -> Self {
+        Self {
+            input: io::stdin(),
+            output: ByteBuf { buf: Vec::new() },
+        }
+    }
+}
+
+impl Read for StdUTF8IOContext {
+    // TODO: how to not copypasta this from StdIOContext?
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        self.input.read(buf)
+    }
+}
+
+impl Write for StdUTF8IOContext {
+    fn write(&mut self, output_buf: &[u8]) -> io::Result<usize> {
+        // TODO: print utf8-encoded chars to stdout
+        self.output.write(output_buf)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.output.flush()
+    }
+}
+
+
+
 /// IOContext supporting reading from input buffer, writing to output buffer, both of which
 /// individually support both Read, Write or use in testing or other non-production environments
 pub struct MockIOContext {
@@ -70,7 +109,7 @@ pub struct MockIOContext {
 }
 
 impl MockIOContext {
-    fn new() -> Self {
+    pub fn new() -> Self {
         MockIOContext {
             input: ByteBuf { buf: Vec::new() },
             output: ByteBuf { buf: Vec::new() },
