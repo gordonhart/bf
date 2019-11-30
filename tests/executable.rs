@@ -62,6 +62,7 @@ impl<'a> TestCase<'a> {
             .args(&self.args)
             .stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
             .spawn()
             .expect("failed to execute");
 
@@ -99,11 +100,13 @@ fn test_hello_world() {
 #[test]
 fn test_hello_world2() {
     TestCase::new()
+        .with_arg("--unbuffered")
         .with_arg("
 >++++++++[-<+++++++++>]<.>>+>-[+]++>++>+++[>[->+++<<
 +++>]<<]>-----.>->+++..+++.>-.<<+[>[+>+]>>]<--------
 ------.>>.+++.------.--------.>+.>+.")
         .expect_stdout("Hello World!\n")
+        .expect_stderr("")
         .execute();
 }
 
@@ -192,3 +195,14 @@ fn test_sierpinksi() {
         .expect_stdout(&sierpinski_string[..]) // ref to full length slice is the same as .as_str()
         .execute();
 }
+
+#[test]
+fn test_missing_file() {
+    TestCase::new()
+        .with_arg("--file")
+        .with_arg("does_not_exist.bf")
+        .with_input("anything")
+        .expect_retcode(1)
+        .execute();
+}
+
