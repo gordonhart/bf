@@ -24,6 +24,12 @@ impl StdIOContext {
 
 impl Read for StdIOContext {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        /*
+        let mut buf_string: String = String::new();
+        let result = self.input.read_line(&mut buf_string);
+        buf[..buf_string.len()].clone_from_slice(buf_string.as_bytes());
+        result
+        */
         self.input.read(buf)
     }
 }

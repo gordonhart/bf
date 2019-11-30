@@ -7,6 +7,14 @@ use rustyline::Editor;
 use crate::token::Token;
 
 
+pub enum ReplResult<T> {
+    Command(Token),
+    // Continue,
+    Quit,
+    Error(T),
+}
+
+
 pub struct ReplInstance {
     editor: Editor<()>,
     queue: Vec<Token>,
@@ -32,24 +40,23 @@ Commands:
 }
 
 impl Iterator for ReplInstance {
-    type Item = Token;
+    type Item = ReplResult<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.queue.len() == 0 {
             let input_line = self.editor.readline("bfi $ ");
             match input_line {
-                // Ok(line) if line == "q" => None,
-                Ok(line) if line == "c" => None,
+                Ok(line) if line == "q" => Some(ReplResult::Quit),
+                Ok(line) if line == "c" => None, // Some(ReplResult::Continue),
                 Ok(line) => {
                     self.editor.add_history_entry(line.as_str());
                     self.queue.extend(Token::parse_str(line.as_str()).iter());
                     self.next()
                 },
-                // Err(e) => REPLResult::Error(format!("{}", e)),
-                Err(e) => None,
+                Err(e) => Some(ReplResult::Error(format!("{}", e))),
             }
         } else {
-            Some(self.queue.remove(0))
+            Some(ReplResult::Command(self.queue.remove(0)))
         }
     }
 }

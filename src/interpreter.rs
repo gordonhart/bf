@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::io::{Read, Write};
+// use std::io::{Read, Write};
 
 use crate::ioctx;
 use crate::repl;
@@ -58,13 +58,9 @@ impl ExecutionContext {
             match self.status {
                 ExecutionStatus::Terminated
                 | ExecutionStatus::ProgramError(_)
-                | ExecutionStatus::InternalError(_) => break,
+                | ExecutionStatus::InternalError(_) => return self,
                 ExecutionStatus::NotStarted => self.status = ExecutionStatus::InProgress,
-                ExecutionStatus::Interactive => {
-                    for cmd in repl::ReplInstance::new() {
-                        self.run_command(&cmd);
-                    }
-                },
+                ExecutionStatus::Interactive => self.run_interactive(),
                 ExecutionStatus::InProgress => {
                     match self.program.get(self.program_ptr) {
                         Some(cmd) => self.run_command(&cmd.clone()),
@@ -72,8 +68,7 @@ impl ExecutionContext {
                     };
                 },
             };
-        };
-        self
+        }
     }
 
     fn run_command(&mut self, command: &Token) {
@@ -93,6 +88,22 @@ impl ExecutionContext {
             Token::LoopEnd => {} // special case that sets the program pointer itself
             _ => self.program_ptr += 1,
         };
+    }
+
+    fn run_interactive(&mut self) {
+        let program_ptr_before = self.program_ptr;
+        for cmd in repl::ReplInstance::new() {
+            match cmd {
+                repl::ReplResult::Command(cmd) => self.run_command(&cmd),
+                repl::ReplResult::Quit => {
+                    self.status = ExecutionStatus::Terminated;
+                    return
+                },
+                repl::ReplResult::Error(e) => panic!(e), // TODO
+            };
+        }
+        self.program_ptr = program_ptr_before;
+        self.status = ExecutionStatus::InProgress;
     }
 
     fn pointer_increment(&mut self) {
@@ -123,11 +134,15 @@ impl ExecutionContext {
     }
 
     fn put_character(&mut self) {
-        (*self.ctx).write(&self.data[self.data_ptr..self.data_ptr]);
+        // self.ctx.write(&self.data[self.data_ptr..self.data_ptr+1]);
+        (*self.ctx).write(&self.data[self.data_ptr..self.data_ptr+1]);
     }
 
     fn get_character(&mut self) {
-        match std::io::stdin()
+        // TODO: figure out why `bytes` default method on Read trait is not available on self.ctx
+        // which implements RW = Read + Write
+        /*
+        match (*self.ctx)
             .bytes()
             .next()
             .and_then(|result| result.ok())
@@ -136,6 +151,10 @@ impl ExecutionContext {
             Some(c) => self.data[self.data_ptr] = c,
             None => self.status = ExecutionStatus::Terminated,
         }
+        */
+        let mut buffer: [u8; 1024] = [0; 1024];
+        (*self.ctx).read(&mut buffer[..]).unwrap(); // TODO: actually handle Result here
+        self.data[self.data_ptr] = buffer[0];
     }
 
     fn find_loop_end(&self, ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {

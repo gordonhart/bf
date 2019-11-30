@@ -49,7 +49,7 @@ fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::RW> {
     match (use_utf8, use_unbuffered) {
         (true, _) => Box::new(ioctx::StdUTF8IOContext::new()),
         (_, true) => Box::new(ioctx::StdIOContext::new()), // ioctx::StdUnbufferedIOContext::new(),
-        (_, false) => Box::new(ioctx::StdIOContext::new()),
+        _ => Box::new(ioctx::StdIOContext::new()),
     }
 }
 
