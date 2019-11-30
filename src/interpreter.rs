@@ -106,7 +106,10 @@ impl ExecutionContext {
                     self.status = ExecutionStatus::Terminated;
                     return
                 },
-                repl::ReplResult::Error(e) => panic!(e), // TODO: actually handle
+                repl::ReplResult::Error(e) => {
+                    self.status = ExecutionStatus::InternalError(e);
+                    return
+                },
             };
         }
         self.program_ptr = program_ptr_before;
@@ -131,7 +134,7 @@ impl ExecutionContext {
         match self.data_ptr {
             0 => self.data.insert(0, 0),
             _ => self.data_ptr -= 1,
-        }
+        };
     }
 
     fn value_increment(&mut self) {
@@ -202,7 +205,6 @@ impl ExecutionContext {
 #[cfg(test)]
 mod test {
     use super::*;
-    use ioctx;
 
     #[test]
     fn test_pointer_increment() {
@@ -225,18 +227,4 @@ mod test {
         let program = vec![Token::PtrInc, Token::LoopEnd];
         assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
     }
-
-    /*
-    #[test]
-    fn test_something() {
-        let mut ictx = Box::new(ioctx::MockIOContext::new());
-        let prog: &str = ",.";
-        ictx.input.buf.push('b' as u8);
-        {
-            let mut ectx = ExecutionContext::new(ictx, prog);
-            let _status = ectx.execute();
-        }
-        assert_eq!(Some(&('b' as u8)), ictx.output.buf.get(0));
-    }
-    */
 }
