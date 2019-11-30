@@ -1,5 +1,7 @@
 extern crate clap;
 
+use std::cell::RefCell;
+
 use clap::{App, Arg, ArgMatches};
 
 mod ioctx;
@@ -71,10 +73,14 @@ fn main() {
         _ => panic!("bfi: argument error"),
     };
 
-    let io_context = get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG));
+    let io_context = RefCell::new(
+        get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)));
 
     let execution_status: interpreter::ExecutionStatus<String> =
-        interpreter::ExecutionContext::new(io_context, program_string.as_str()).execute();
+        interpreter::ExecutionContext::new(
+            io_context.borrow_mut(),
+            program_string.as_str(),
+        ).execute();
 
     let retcode: i32 = match execution_status {
         interpreter::ExecutionStatus::Terminated => {

@@ -2,5 +2,6 @@
 **/*.rs.bk
 Cargo.lock
 
+# vim tmp files
 *.swo
 *.swp
