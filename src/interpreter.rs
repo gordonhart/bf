@@ -1,5 +1,5 @@
-use std::fmt::Debug;
-// use std::io::{Read, Write};
+use std::default::Default;
+use std::fmt::{self, Debug};
 
 use crate::ioctx;
 use crate::repl;
@@ -24,8 +24,8 @@ pub struct ExecutionContext {
     loop_stack: Vec<usize>,
 }
 
-impl std::fmt::Debug for ExecutionContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for ExecutionContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "data: {:?}\ndata_ptr: {:?}\nprogram_ptr: {:?}\nloop_stack: {:?}\nstatus: {:?}",
@@ -34,16 +34,26 @@ impl std::fmt::Debug for ExecutionContext {
     }
 }
 
+impl Default for ExecutionContext {
+    fn default() -> Self {
+        ExecutionContext {
+            status: ExecutionStatus::NotStarted,
+            ctx: Box::new(ioctx::StdIOContext::new()),
+            data: vec![0],
+            data_ptr: 0,
+            program: vec![],
+            program_ptr: 0,
+            loop_stack: vec![],
+        }
+    }
+}
+
 impl ExecutionContext {
     pub fn new(ctx: Box<dyn ioctx::RW>, program: &str) -> Self {
         ExecutionContext {
-            status: ExecutionStatus::NotStarted,
             ctx: ctx,
-            data: vec![0],
-            data_ptr: 0,
             program: Token::parse_str(program),
-            program_ptr: 0,
-            loop_stack: vec![],
+            ..ExecutionContext::default()
         }
     }
 
@@ -52,15 +62,11 @@ impl ExecutionContext {
         self.status.clone()
     }
 
-    fn run(&mut self) -> &mut Self {
+    fn run(&mut self) {
         loop {
             match self.status {
-                ExecutionStatus::Terminated => {
-                    self.cleanup();
-                    return self
-                },
-                ExecutionStatus::ProgramError(_)
-                | ExecutionStatus::InternalError(_) => return self,
+                ExecutionStatus::Terminated => return self.cleanup(),
+                ExecutionStatus::ProgramError(_) | ExecutionStatus::InternalError(_) => return,
                 ExecutionStatus::NotStarted => self.status = ExecutionStatus::InProgress,
                 ExecutionStatus::InProgress => {
                     match self.program.get(self.program_ptr) {
@@ -147,21 +153,21 @@ impl ExecutionContext {
         self.data[self.data_ptr] = buffer[0];
     }
 
-    fn find_loop_end(&self, ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
+    fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
         match program.get(ptr) {
             Some(Token::LoopEnd) => Ok(ptr),
             Some(Token::LoopBeg) => {
-                self.find_loop_end(ptr + 1, program)
-                    .and_then(|i| self.find_loop_end(i + 1, program))
+                ExecutionContext::find_loop_end(ptr + 1, program)
+                    .and_then(|i| ExecutionContext::find_loop_end(i + 1, program))
             }
-            Some(_) => self.find_loop_end(ptr + 1, program),
+            Some(_) => ExecutionContext::find_loop_end(ptr + 1, program),
             None => Err(()),
         }
     }
 
     fn loop_enter(&mut self) {
         match self.data[self.data_ptr] {
-            0 => match self.find_loop_end(self.program_ptr + 1, &self.program) {
+            0 => match ExecutionContext::find_loop_end(self.program_ptr + 1, &self.program) {
                 Ok(i) => self.program_ptr = i,
                 Err(_) => {
                     let e = format!(
@@ -183,5 +189,34 @@ impl ExecutionContext {
                 self.status = ExecutionStatus::ProgramError(e.to_string())
             }
         }
+    }
+}
+
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_pointer_increment() {
+        let mut ectx = ExecutionContext::default();
+        ectx.pointer_increment();
+        assert_eq!(1, ectx.data_ptr);
+        assert_eq!(vec![0, 0], ectx.data);
+    }
+
+    #[test]
+    fn test_pointer_decrement() {
+        let mut ectx = ExecutionContext::default();
+        ectx.pointer_decrement();
+        assert_eq!(0, ectx.data_ptr);
+        assert_eq!(vec![0, 0], ectx.data);
+    }
+
+    #[test]
+    fn test_find_loop_end() {
+        let program = vec![Token::PtrInc, Token::LoopEnd];
+        assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
     }
 }
