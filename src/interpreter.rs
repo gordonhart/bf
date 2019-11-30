@@ -49,9 +49,9 @@ impl Default for ExecutionContext {
 }
 
 impl ExecutionContext {
-    pub fn new(ctx: Box<dyn ioctx::RW>, program: &str) -> Self {
+    pub fn new(ictx: Box<dyn ioctx::RW>, program: &str) -> Self {
         ExecutionContext {
-            ctx: ctx,
+            ctx: ictx,
             program: Token::parse_str(program),
             ..ExecutionContext::default()
         }
@@ -70,7 +70,7 @@ impl ExecutionContext {
                 ExecutionStatus::NotStarted => self.status = ExecutionStatus::InProgress,
                 ExecutionStatus::InProgress => {
                     match self.program.get(self.program_ptr) {
-                        Some(cmd) => self.run_command(&cmd.clone()),
+                        Some(&cmd) => self.run_command(cmd),
                         None => self.status = ExecutionStatus::Terminated,
                     };
                 },
@@ -78,7 +78,7 @@ impl ExecutionContext {
         }
     }
 
-    fn run_command(&mut self, command: &Token) {
+    fn run_command(&mut self, command: Token) {
         match command {
             Token::PtrInc => self.pointer_increment(),
             Token::PtrDec => self.pointer_decrement(),
@@ -101,12 +101,12 @@ impl ExecutionContext {
         let program_ptr_before = self.program_ptr;
         for cmd in repl::ReplInstance::new() {
             match cmd {
-                repl::ReplResult::Command(cmd) => self.run_command(&cmd),
+                repl::ReplResult::Command(cmd) => self.run_command(cmd),
                 repl::ReplResult::Quit => {
                     self.status = ExecutionStatus::Terminated;
                     return
                 },
-                repl::ReplResult::Error(e) => panic!(e), // TODO
+                repl::ReplResult::Error(e) => panic!(e), // TODO: actually handle
             };
         }
         self.program_ptr = program_ptr_before;
@@ -114,7 +114,7 @@ impl ExecutionContext {
 
     fn cleanup(&mut self) {
         // Assert that all open loops have been terminated
-        if self.loop_stack.len() > 0 {
+        if !self.loop_stack.is_empty() {
             let e = format!("unmatched '[' at program position(s): {:?}", self.loop_stack);
             self.status = ExecutionStatus::ProgramError(e.to_string());
         };
@@ -122,7 +122,7 @@ impl ExecutionContext {
 
     fn pointer_increment(&mut self) {
         self.data_ptr += 1;
-        if let None = self.data.get(self.data_ptr) {
+        if self.data.get(self.data_ptr).is_none() {
             self.data.push(0);
         };
     }
@@ -143,17 +143,22 @@ impl ExecutionContext {
     }
 
     fn put_character(&mut self) {
-        (*self.ctx).write(&self.data[self.data_ptr..self.data_ptr+1]);
+        // TODO: actually handle Result here
+        (*self.ctx).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
     }
 
     fn get_character(&mut self) {
         // let mut buffer: [u8; 1024] = [0; 1024];
         let mut buffer: [u8; 1] = [0; 1];
-        (*self.ctx).read(&mut buffer[..]).unwrap(); // TODO: actually handle Result here
-        self.data[self.data_ptr] = buffer[0];
+        match (*self.ctx).read(&mut buffer[..]) {
+            Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
+            // TODO: why is reading nothing acceptable?
+            Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
+            Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
+        }
     }
 
-    fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
+    fn find_loop_end(ptr: usize, program: &[Token]) -> Result<usize, ()> {
         match program.get(ptr) {
             Some(Token::LoopEnd) => Ok(ptr),
             Some(Token::LoopBeg) => {
@@ -197,6 +202,7 @@ impl ExecutionContext {
 #[cfg(test)]
 mod test {
     use super::*;
+    use ioctx;
 
     #[test]
     fn test_pointer_increment() {
@@ -219,4 +225,18 @@ mod test {
         let program = vec![Token::PtrInc, Token::LoopEnd];
         assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
     }
+
+    /*
+    #[test]
+    fn test_something() {
+        let mut ictx = Box::new(ioctx::MockIOContext::new());
+        let prog: &str = ",.";
+        ictx.input.buf.push('b' as u8);
+        {
+            let mut ectx = ExecutionContext::new(ictx, prog);
+            let _status = ectx.execute();
+        }
+        assert_eq!(Some(&('b' as u8)), ictx.output.buf.get(0));
+    }
+    */
 }

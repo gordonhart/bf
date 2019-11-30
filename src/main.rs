@@ -7,11 +7,11 @@ mod interpreter;
 mod repl;
 mod token;
 
-static PROGRAM_ARG: &'static str = "program";
-static VERBOSE_ARG: &'static str = "verbose";
-static FILE_ARG: &'static str = "file";
-static UTF8_FLAG: &'static str = "utf8";
-static UNBUFFERED_FLAG: &'static str = "unbuffered";
+static PROGRAM_ARG: &str = "program";
+static VERBOSE_ARG: &str = "verbose";
+static FILE_ARG: &str = "file";
+static UTF8_FLAG: &str = "utf8";
+static UNBUFFERED_FLAG: &str = "unbuffered";
 
 // explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {

@@ -44,7 +44,7 @@ impl Iterator for ReplInstance {
     type Item = ReplResult<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.queue.len() == 0 {
+        if self.queue.is_empty() {
             let input_line = self.editor.readline("bfi $ ");
             match input_line {
                 // TODO: merge these two arms?

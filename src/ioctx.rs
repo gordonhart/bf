@@ -48,7 +48,7 @@ impl Write for StdIOContext {
 
 /// Struct wrapper for u8 vector implementing Read, Write traits
 pub struct ByteBuf {
-    buf: Vec<u8>,
+    pub buf: Vec<u8>,
 }
 
 impl Read for ByteBuf {
@@ -110,8 +110,8 @@ impl Write for StdUTF8IOContext {
 /// IOContext supporting reading from input buffer, writing to output buffer, both of which
 /// individually support both Read, Write or use in testing or other non-production environments
 pub struct MockIOContext {
-    input: ByteBuf,
-    output: ByteBuf,
+    pub input: ByteBuf,
+    pub output: ByteBuf,
 }
 
 impl MockIOContext {
