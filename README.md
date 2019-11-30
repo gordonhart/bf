@@ -109,6 +109,7 @@ $ ./target/release/bfi <program>
 - Reasonable performance and resource usage (nothing dumb)
 - Non-negligible test coverage
 - No compiler warnings
+- No [clippy](https://github.com/rust-lang/rust-clippy) warnings
 
 
 ## TODOs

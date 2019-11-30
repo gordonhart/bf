@@ -2,57 +2,55 @@ extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
 
-mod buffer;
+mod ioctx;
 mod interpreter;
 mod repl;
 mod token;
 
-static PROGRAM_ARG: &'static str = "program";
-static VERBOSE_ARG: &'static str = "verbose";
-static FILE_ARG: &'static str = "file";
-static UTF8_FLAG: &'static str = "utf8";
-static UNBUFFERED_FLAG: &'static str = "unbuffered";
+static PROGRAM_ARG: &str = "program";
+static VERBOSE_ARG: &str = "verbose";
+static FILE_ARG: &str = "file";
+static UTF8_FLAG: &str = "utf8";
+static UNBUFFERED_FLAG: &str = "unbuffered";
 
 // explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {
     App::new("bfi")
         .version("0.1")
         .about("BrainF*ck language interpreter")
-        .arg(
-            Arg::with_name(PROGRAM_ARG)
-                .help("Program to execute")
-                .conflicts_with(FILE_ARG)
-                .index(1),
-        )
-        .arg(
-            Arg::with_name(VERBOSE_ARG)
-                .short("v")
-                .long("verbose")
-                .help("Toggle high verbosity"),
-        )
-        .arg(
-            Arg::with_name(FILE_ARG)
-                .short("f")
-                .long("file")
-                .takes_value(true)
-                .value_name("FILE")
-                .conflicts_with(PROGRAM_ARG)
-                .help("Program file to execute"),
-        )
-        .arg(
-            Arg::with_name(UTF8_FLAG)
-                .short("u")
-                .long("utf8")
-                .takes_value(false)
-                .help("Use 8-bit Unicode output encoding"),
-        )
-        .arg(
-            Arg::with_name(UNBUFFERED_FLAG)
-                .long("unbuffered")
-                .takes_value(false)
-                .help("Do not buffer output"),
-        )
+        .arg(Arg::with_name(PROGRAM_ARG)
+            .help("Program to execute")
+            .conflicts_with(FILE_ARG)
+            .index(1))
+        .arg(Arg::with_name(VERBOSE_ARG)
+            .short("v")
+            .long("verbose")
+            .help("Toggle high verbosity"))
+        .arg(Arg::with_name(FILE_ARG)
+            .short("f")
+            .long("file")
+            .takes_value(true)
+            .value_name("FILE")
+            .conflicts_with(PROGRAM_ARG)
+            .help("Program file to execute"))
+        .arg(Arg::with_name(UTF8_FLAG)
+            .short("u")
+            .long("utf8")
+            .takes_value(false)
+            .help("Use 8-bit Unicode output encoding"))
+        .arg(Arg::with_name(UNBUFFERED_FLAG)
+            .long("unbuffered")
+            .takes_value(false)
+            .help("Do not buffer output"))
         .get_matches()
+}
+
+fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::RW> {
+    match (use_utf8, use_unbuffered) {
+        (true, _) => Box::new(ioctx::StdUTF8IOContext::new()),
+        (_, true) => Box::new(ioctx::StdIOContext::new()), // ioctx::StdUnbufferedIOContext::new(),
+        _ => Box::new(ioctx::StdIOContext::new()),
+    }
 }
 
 fn main() {
@@ -67,29 +65,25 @@ fn main() {
                 std::process::exit(1);
             }
         },
-        (None, None) => "!".to_string(), // default to REPL if no program provided
+        // default to REPL if no program provided
+        (None, None) => "!".to_string(),
         // final arm should never be reached due to mutual `conflicts_with`
         _ => panic!("bfi: argument error"),
     };
 
-    let mut buffer: Box<dyn buffer::Buffer> = match
-        (opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG))
-    {
-        (true, _) => Box::new(buffer::UTF8CharBuffer::new()),
-        (_, true) => Box::new(buffer::ASCIICharBuffer {}),
-        (_, false) => Box::new(buffer::ASCIILineBuffer {}),
-    };
+    let io_context = get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG));
 
-    let program_context_after_execution = interpreter::run(program_string.as_str(), &mut *buffer);
+    let execution_status: interpreter::ExecutionStatus<String> =
+        interpreter::ExecutionContext::new(io_context, program_string.as_str()).execute();
 
-    let retcode: i32 = match program_context_after_execution.status {
+    let retcode: i32 = match execution_status {
         interpreter::ExecutionStatus::Terminated => {
             if opts.is_present(VERBOSE_ARG) {
                 eprintln!("bfi: terminated without errors");
             };
             0
         }
-        interpreter::ExecutionStatus::Error(err) => {
+        interpreter::ExecutionStatus::ProgramError(err) => {
             eprintln!("bfi: exited with error: {}", err);
             1
         }

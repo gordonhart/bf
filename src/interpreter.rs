@@ -1,229 +1,230 @@
-use std::io::Read;
+use std::default::Default;
+use std::fmt::{self, Debug};
 
-use crate::buffer::Buffer;
+use crate::ioctx;
 use crate::repl;
 use crate::token::Token;
 
-// TODO: figure out why these derive macros fail with E0495:
-// cannot infer an appropriate lifetime for lifetime parameter `'a` due to conflicting requirements
-// #[derive(Debug, PartialEq)]
-pub struct ExecutionContext<'a> {
-    pub data: Vec<u8>,
-    pub data_ptr: usize,
-    pub program_ptr: usize,
-    pub loop_stack: Vec<usize>,
-    pub status: ExecutionStatus<String>,
-    pub buffer: &'a mut dyn Buffer,
-}
-
-impl<'a> std::fmt::Debug for ExecutionContext<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:>11} {:?}\n", "data", self.data)?;
-        write!(f, "{:>11} {:?}\n", "data_ptr", self.data_ptr)?;
-        write!(f, "{:>11} {:?}\n", "program_ptr", self.program_ptr)?;
-        write!(f, "{:>11} {:?}\n", "loop_stack", self.loop_stack)?;
-        write!(f, "{:>11} {:?}", "status", self.status)
-    }
-}
-
-impl<'a> ExecutionContext<'a> {
-    pub fn new<'b>(buffer: &'b mut dyn Buffer) -> ExecutionContext<'b> {
-        ExecutionContext {
-            data: vec![0],
-            data_ptr: 0,
-            program_ptr: 0,
-            loop_stack: vec![],
-            status: ExecutionStatus::NotStarted,
-            buffer: buffer,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum ExecutionStatus<T> {
     NotStarted,
     InProgress,
     Terminated,
-    Error(T),
+    ProgramError(T),
+    InternalError(T),
 }
 
-pub fn run<'a>(program: &str, buffer: &'a mut dyn Buffer) -> ExecutionContext<'a> {
-    let mut context = ExecutionContext::new(buffer);
-    match parse_program(program) {
-        Ok(parsed_program) => run_program(&mut context, &parsed_program),
-        Err(err) => context.status = ExecutionStatus::Error(err),
-    };
-    context
+pub struct ExecutionContext {
+    status: ExecutionStatus<String>,
+    ctx: Box<dyn ioctx::RW>,
+    data: Vec<u8>,
+    data_ptr: usize,
+    program: Vec<Token>,
+    program_ptr: usize,
+    loop_stack: Vec<usize>,
 }
 
-pub fn parse_program(program: &str) -> Result<Vec<Token>, String> {
-    program
-        .chars()
-        .map(|c| Token::decode(c))
-        .filter(|t_res| t_res.is_ok())
-        .collect()
-}
-
-pub fn run_program(context: &mut ExecutionContext, program: &Vec<Token>) {
-    context.status = ExecutionStatus::InProgress;
-    loop {
-        match context.status {
-            ExecutionStatus::Terminated | ExecutionStatus::Error(_) => break,
-            _ => {}
-        };
-        match program.get(context.program_ptr) {
-            Some(command) => run_command(context, &command, program),
-            None => {
-                context.status = ExecutionStatus::Terminated;
-                break;
-            },
-        };
+impl Debug for ExecutionContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "data: {:?}\ndata_ptr: {:?}\nprogram_ptr: {:?}\nloop_stack: {:?}\nstatus: {:?}",
+            self.data, self.data_ptr, self.program_ptr, self.loop_stack, self.status,
+        )
     }
 }
 
-pub fn run_command(context: &mut ExecutionContext, command: &Token, program: &Vec<Token>) {
-    match command {
-        Token::PtrInc => pointer_increment(context),
-        Token::PtrDec => pointer_decrement(context),
-        Token::ValInc => value_increment(context),
-        Token::ValDec => value_decrement(context),
-        Token::PutChar => context.buffer.put_byte(context.data[context.data_ptr]),
-        Token::GetChar => get_character(context),
-        Token::LoopBeg => loop_enter(context, program),
-        Token::LoopEnd => loop_exit(context),
-        Token::DebugDump => eprintln!("{:?}", context),
-        Token::DebugBreakpoint => repl::run(context),
-    };
-    match command {
-        Token::LoopEnd => {} // special case that sets the program pointer itself
-        _ => context.program_ptr += 1,
-    };
-}
-
-fn pointer_increment(context: &mut ExecutionContext) {
-    context.data_ptr += 1;
-    match context.data.get(context.data_ptr) {
-        Some(_) => {}
-        None => context.data.push(0),
-    }
-}
-
-fn pointer_decrement(context: &mut ExecutionContext) {
-    match context.data_ptr {
-        0 => context.data.insert(0, 0),
-        _ => context.data_ptr -= 1,
-    }
-}
-
-fn value_increment(context: &mut ExecutionContext) {
-    match context.data[context.data_ptr].overflowing_add(1) {
-        (v, _) => context.data[context.data_ptr] = v,
-    }
-}
-
-fn value_decrement(context: &mut ExecutionContext) {
-    match context.data[context.data_ptr].overflowing_sub(1) {
-        (v, _) => context.data[context.data_ptr] = v,
-    }
-}
-
-fn get_character(context: &mut ExecutionContext) {
-    match std::io::stdin()
-        .bytes()
-        .next()
-        .and_then(|result| result.ok())
-        .map(|byte| byte as u8)
-    {
-        Some(c) => context.data[context.data_ptr] = c,
-        None => context.status = ExecutionStatus::Terminated, // EOF
-    }
-}
-
-fn find_loop_end(ptr: usize, program: &Vec<Token>) -> Result<usize, ()> {
-    match program.get(ptr) {
-        Some(Token::LoopEnd) => Ok(ptr),
-        Some(Token::LoopBeg) => {
-            find_loop_end(ptr + 1, program).and_then(|i| find_loop_end(i + 1, program))
+impl Default for ExecutionContext {
+    fn default() -> Self {
+        ExecutionContext {
+            status: ExecutionStatus::NotStarted,
+            ctx: Box::new(ioctx::StdIOContext::new()),
+            data: vec![0],
+            data_ptr: 0,
+            program: vec![],
+            program_ptr: 0,
+            loop_stack: vec![],
         }
-        Some(_) => find_loop_end(ptr + 1, program),
-        None => Err(()),
     }
 }
 
-fn loop_enter(context: &mut ExecutionContext, program: &Vec<Token>) {
-    if context.data[context.data_ptr] == 0 {
-        match find_loop_end(context.program_ptr + 1, program) {
-            Ok(i) => context.program_ptr = i,
-            Err(_) => {
-                context.status = ExecutionStatus::Error("'[' missing corresponding ']'".to_string())
+impl ExecutionContext {
+    pub fn new(ictx: Box<dyn ioctx::RW>, program: &str) -> Self {
+        ExecutionContext {
+            ctx: ictx,
+            program: Token::parse_str(program),
+            ..ExecutionContext::default()
+        }
+    }
+
+    pub fn execute(&mut self) -> ExecutionStatus<String> {
+        self.run();
+        self.status.clone()
+    }
+
+    fn run(&mut self) {
+        loop {
+            match self.status {
+                ExecutionStatus::Terminated => return self.cleanup(),
+                ExecutionStatus::ProgramError(_) | ExecutionStatus::InternalError(_) => return,
+                ExecutionStatus::NotStarted => self.status = ExecutionStatus::InProgress,
+                ExecutionStatus::InProgress => {
+                    match self.program.get(self.program_ptr) {
+                        Some(&cmd) => self.run_command(cmd),
+                        None => self.status = ExecutionStatus::Terminated,
+                    };
+                },
+            };
+        }
+    }
+
+    fn run_command(&mut self, command: Token) {
+        match command {
+            Token::PtrInc => self.pointer_increment(),
+            Token::PtrDec => self.pointer_decrement(),
+            Token::ValInc => self.value_increment(),
+            Token::ValDec => self.value_decrement(),
+            Token::PutChar => self.put_character(),
+            Token::GetChar => self.get_character(),
+            Token::LoopBeg => self.loop_enter(),
+            Token::LoopEnd => self.loop_exit(),
+            Token::DebugDump => eprintln!("{:?}", self),
+            Token::DebugBreakpoint => self.run_interactive(),
+        };
+        match command {
+            Token::LoopEnd => {} // special case that sets the program pointer itself
+            _ => self.program_ptr += 1,
+        };
+    }
+
+    fn run_interactive(&mut self) {
+        let program_ptr_before = self.program_ptr;
+        for cmd in repl::ReplInstance::new() {
+            match cmd {
+                repl::ReplResult::Command(cmd) => self.run_command(cmd),
+                repl::ReplResult::Quit => {
+                    self.status = ExecutionStatus::Terminated;
+                    return
+                },
+                repl::ReplResult::Error(e) => {
+                    self.status = ExecutionStatus::InternalError(e);
+                    return
+                },
+            };
+        }
+        self.program_ptr = program_ptr_before;
+    }
+
+    fn cleanup(&mut self) {
+        // Assert that all open loops have been terminated
+        if !self.loop_stack.is_empty() {
+            let e = format!("unmatched '[' at program position(s): {:?}", self.loop_stack);
+            self.status = ExecutionStatus::ProgramError(e.to_string());
+        };
+    }
+
+    fn pointer_increment(&mut self) {
+        self.data_ptr += 1;
+        if self.data.get(self.data_ptr).is_none() {
+            self.data.push(0);
+        };
+    }
+
+    fn pointer_decrement(&mut self) {
+        match self.data_ptr {
+            0 => self.data.insert(0, 0),
+            _ => self.data_ptr -= 1,
+        };
+    }
+
+    fn value_increment(&mut self) {
+        self.data[self.data_ptr] = self.data[self.data_ptr].wrapping_add(1);
+    }
+
+    fn value_decrement(&mut self) {
+        self.data[self.data_ptr] = self.data[self.data_ptr].wrapping_sub(1);
+    }
+
+    fn put_character(&mut self) {
+        // TODO: actually handle Result here
+        (*self.ctx).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
+    }
+
+    fn get_character(&mut self) {
+        // let mut buffer: [u8; 1024] = [0; 1024];
+        let mut buffer: [u8; 1] = [0; 1];
+        match (*self.ctx).read(&mut buffer[..]) {
+            Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
+            // TODO: why is reading nothing acceptable?
+            Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
+            Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
+        }
+    }
+
+    fn find_loop_end(ptr: usize, program: &[Token]) -> Result<usize, ()> {
+        match program.get(ptr) {
+            Some(Token::LoopEnd) => Ok(ptr),
+            Some(Token::LoopBeg) => {
+                ExecutionContext::find_loop_end(ptr + 1, program)
+                    .and_then(|i| ExecutionContext::find_loop_end(i + 1, program))
             }
-        };
-    } else {
-       context.loop_stack.push(context.program_ptr);
+            Some(_) => ExecutionContext::find_loop_end(ptr + 1, program),
+            None => Err(()),
+        }
     }
-}
 
-fn loop_exit(context: &mut ExecutionContext) {
-    match (context.loop_stack.pop(), context.data[context.data_ptr]) {
-        (Some(_), 0) => context.program_ptr += 1,
-        (Some(ptr_loc), _) => context.program_ptr = ptr_loc,
-        (None, _) => {
-            context.status = ExecutionStatus::Error("']' missing corresponding '['".to_string())
+    fn loop_enter(&mut self) {
+        match self.data[self.data_ptr] {
+            0 => match ExecutionContext::find_loop_end(self.program_ptr + 1, &self.program) {
+                Ok(i) => self.program_ptr = i,
+                Err(_) => {
+                    let e = format!(
+                        "'[' at program position {} missing corresponding ']'", self.program_ptr);
+                    self.status = ExecutionStatus::ProgramError(e.to_string());
+                }
+            },
+            _ => self.loop_stack.push(self.program_ptr),
+        }
+    }
+
+    fn loop_exit(&mut self) {
+        match (self.loop_stack.pop(), self.data[self.data_ptr]) {
+            (Some(_), 0) => self.program_ptr += 1,
+            (Some(ptr_loc), _) => self.program_ptr = ptr_loc,
+            (None, _) => {
+                let e = format!(
+                    "']' at program position {} missing corresponding '['", self.program_ptr);
+                self.status = ExecutionStatus::ProgramError(e.to_string())
+            }
         }
     }
 }
+
+
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::buffer::ASCIICharBuffer;
 
     #[test]
     fn test_pointer_increment() {
-        let mut buffer = ASCIICharBuffer {};
-        let mut context = ExecutionContext::new(&mut buffer);
-        pointer_increment(&mut context);
-        assert_eq!(1, context.data_ptr);
-        assert_eq!(vec![0, 0], context.data);
+        let mut ectx = ExecutionContext::default();
+        ectx.pointer_increment();
+        assert_eq!(1, ectx.data_ptr);
+        assert_eq!(vec![0, 0], ectx.data);
     }
 
     #[test]
     fn test_pointer_decrement() {
-        let mut buffer = ASCIICharBuffer {};
-        let mut context = ExecutionContext::new(&mut buffer);
-        pointer_decrement(&mut context);
-        assert_eq!(0, context.data_ptr);
-        assert_eq!(vec![0, 0], context.data);
-    }
-
-    #[test]
-    fn test_value_increment() {
-        let mut buffer = ASCIICharBuffer {};
-        let mut context = ExecutionContext::new(&mut buffer);
-        value_increment(&mut context);
-        assert_eq!(1, context.data[context.data_ptr]);
-    }
-
-    #[test]
-    fn test_value_increment_with_overflow() {
-        let mut buffer = ASCIICharBuffer {};
-        let mut context = ExecutionContext::new(&mut buffer);
-        context.data[context.data_ptr] = 255;
-        value_increment(&mut context);
-        assert_eq!(0, context.data[context.data_ptr]);
-    }
-
-    #[test]
-    fn test_value_decrement_with_underflow() {
-        let mut buffer = ASCIICharBuffer {};
-        let mut context = ExecutionContext::new(&mut buffer);
-        value_decrement(&mut context);
-        assert_eq!(255, context.data[context.data_ptr]);
+        let mut ectx = ExecutionContext::default();
+        ectx.pointer_decrement();
+        assert_eq!(0, ectx.data_ptr);
+        assert_eq!(vec![0, 0], ectx.data);
     }
 
     #[test]
     fn test_find_loop_end() {
         let program = vec![Token::PtrInc, Token::LoopEnd];
-        assert_eq!(Ok(1), find_loop_end(0, &program));
+        assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
     }
 }
