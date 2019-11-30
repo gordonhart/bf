@@ -3,6 +3,7 @@ extern crate rustyline;
 use std::iter::Iterator;
 
 use rustyline::Editor;
+use rustyline::error::ReadlineError;
 
 use crate::token::Token;
 
@@ -46,8 +47,11 @@ impl Iterator for ReplInstance {
         if self.queue.len() == 0 {
             let input_line = self.editor.readline("bfi $ ");
             match input_line {
+                // TODO: merge these two arms?
                 Ok(line) if line == "q" => Some(ReplResult::Quit),
-                Ok(line) if line == "c" => None, // Some(ReplResult::Continue),
+                Err(ReadlineError::Eof) | Err(ReadlineError::Interrupted) => Some(ReplResult::Quit),
+                // exits cleanly out of the REPL by ending iteration
+                Ok(line) if line == "c" => None,
                 Ok(line) => {
                     self.editor.add_history_entry(line.as_str());
                     self.queue.extend(Token::parse_str(line.as_str()).iter());

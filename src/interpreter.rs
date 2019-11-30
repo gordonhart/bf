@@ -10,7 +10,6 @@ pub enum ExecutionStatus<T> {
     NotStarted,
     InProgress,
     Terminated,
-    Interactive,
     ProgramError(T),
     InternalError(T),
 }
@@ -56,11 +55,13 @@ impl ExecutionContext {
     fn run(&mut self) -> &mut Self {
         loop {
             match self.status {
-                ExecutionStatus::Terminated
-                | ExecutionStatus::ProgramError(_)
+                ExecutionStatus::Terminated => {
+                    self.cleanup();
+                    return self
+                },
+                ExecutionStatus::ProgramError(_)
                 | ExecutionStatus::InternalError(_) => return self,
                 ExecutionStatus::NotStarted => self.status = ExecutionStatus::InProgress,
-                ExecutionStatus::Interactive => self.run_interactive(),
                 ExecutionStatus::InProgress => {
                     match self.program.get(self.program_ptr) {
                         Some(cmd) => self.run_command(&cmd.clone()),
@@ -82,7 +83,7 @@ impl ExecutionContext {
             Token::LoopBeg => self.loop_enter(),
             Token::LoopEnd => self.loop_exit(),
             Token::DebugDump => eprintln!("{:?}", self),
-            Token::DebugBreakpoint => self.status = ExecutionStatus::Interactive,
+            Token::DebugBreakpoint => self.run_interactive(),
         };
         match command {
             Token::LoopEnd => {} // special case that sets the program pointer itself
@@ -103,15 +104,21 @@ impl ExecutionContext {
             };
         }
         self.program_ptr = program_ptr_before;
-        self.status = ExecutionStatus::InProgress;
+    }
+
+    fn cleanup(&mut self) {
+        // Assert that all open loops have been terminated
+        if self.loop_stack.len() > 0 {
+            let e = format!("unmatched '[' at program position(s): {:?}", self.loop_stack);
+            self.status = ExecutionStatus::ProgramError(e.to_string());
+        };
     }
 
     fn pointer_increment(&mut self) {
         self.data_ptr += 1;
-        match self.data.get(self.data_ptr) {
-            Some(_) => {}
-            None => self.data.push(0),
-        }
+        if let None = self.data.get(self.data_ptr) {
+            self.data.push(0);
+        };
     }
 
     fn pointer_decrement(&mut self) {
@@ -122,37 +129,20 @@ impl ExecutionContext {
     }
 
     fn value_increment(&mut self) {
-        match self.data[self.data_ptr].overflowing_add(1) {
-            (v, _) => self.data[self.data_ptr] = v,
-        }
+        self.data[self.data_ptr] = self.data[self.data_ptr].wrapping_add(1);
     }
 
     fn value_decrement(&mut self) {
-        match self.data[self.data_ptr].overflowing_sub(1) {
-            (v, _) => self.data[self.data_ptr] = v,
-        }
+        self.data[self.data_ptr] = self.data[self.data_ptr].wrapping_sub(1);
     }
 
     fn put_character(&mut self) {
-        // self.ctx.write(&self.data[self.data_ptr..self.data_ptr+1]);
         (*self.ctx).write(&self.data[self.data_ptr..self.data_ptr+1]);
     }
 
     fn get_character(&mut self) {
-        // TODO: figure out why `bytes` default method on Read trait is not available on self.ctx
-        // which implements RW = Read + Write
-        /*
-        match (*self.ctx)
-            .bytes()
-            .next()
-            .and_then(|result| result.ok())
-            .map(|byte| byte as u8)
-        {
-            Some(c) => self.data[self.data_ptr] = c,
-            None => self.status = ExecutionStatus::Terminated,
-        }
-        */
-        let mut buffer: [u8; 1024] = [0; 1024];
+        // let mut buffer: [u8; 1024] = [0; 1024];
+        let mut buffer: [u8; 1] = [0; 1];
         (*self.ctx).read(&mut buffer[..]).unwrap(); // TODO: actually handle Result here
         self.data[self.data_ptr] = buffer[0];
     }
@@ -161,7 +151,8 @@ impl ExecutionContext {
         match program.get(ptr) {
             Some(Token::LoopEnd) => Ok(ptr),
             Some(Token::LoopBeg) => {
-                self.find_loop_end(ptr + 1, program).and_then(|i| self.find_loop_end(i + 1, program))
+                self.find_loop_end(ptr + 1, program)
+                    .and_then(|i| self.find_loop_end(i + 1, program))
             }
             Some(_) => self.find_loop_end(ptr + 1, program),
             None => Err(()),
@@ -173,7 +164,9 @@ impl ExecutionContext {
             0 => match self.find_loop_end(self.program_ptr + 1, &self.program) {
                 Ok(i) => self.program_ptr = i,
                 Err(_) => {
-                    self.status = ExecutionStatus::ProgramError("'[' missing corresponding ']'".to_string())
+                    let e = format!(
+                        "'[' at program position {} missing corresponding ']'", self.program_ptr);
+                    self.status = ExecutionStatus::ProgramError(e.to_string());
                 }
             },
             _ => self.loop_stack.push(self.program_ptr),
@@ -185,7 +178,9 @@ impl ExecutionContext {
             (Some(_), 0) => self.program_ptr += 1,
             (Some(ptr_loc), _) => self.program_ptr = ptr_loc,
             (None, _) => {
-                self.status = ExecutionStatus::ProgramError("']' missing corresponding '['".to_string())
+                let e = format!(
+                    "']' at program position {} missing corresponding '['", self.program_ptr);
+                self.status = ExecutionStatus::ProgramError(e.to_string())
             }
         }
     }
