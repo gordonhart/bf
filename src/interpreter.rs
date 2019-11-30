@@ -1,8 +1,9 @@
 use std::cell::RefMut;
 use std::default::Default;
 use std::fmt::{self, Debug};
+use std::io::{Read, Write};
 
-use crate::ioctx;
+use crate::ioctx::IoCtx;
 use crate::repl;
 use crate::token::Token;
 
@@ -19,7 +20,7 @@ pub enum ExecutionStatus<T> {
 
 pub struct ExecutionContext<'a> {
     pub status: ExecutionStatus<String>,
-    ctx: Option<RefMut<'a, Box<dyn ioctx::RW>>>,
+    ctx: Option<RefMut<'a, Box<dyn IoCtx>>>,
     data: Vec<u8>,
     data_ptr: usize,
     program: Vec<Token>,
@@ -55,7 +56,7 @@ impl<'a> Default for ExecutionContext<'a> {
 
 
 impl<'a> ExecutionContext<'a> {
-    pub fn new(ictx: RefMut<'a, Box<dyn ioctx::RW>>, program: &str) -> Self {
+    pub fn new(ictx: RefMut<'a, Box<dyn IoCtx>>, program: &str) -> Self {
         ExecutionContext {
             ctx: Some(ictx),
             program: Token::parse_str(program),
@@ -212,6 +213,8 @@ impl<'a> ExecutionContext<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::cell::RefCell;
+    use crate::ioctx;
 
     #[test]
     fn test_pointer_increment() {
@@ -233,5 +236,16 @@ mod test {
     fn test_find_loop_end() {
         let program = vec![Token::PtrInc, Token::LoopEnd];
         assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
+    }
+
+    #[test]
+    fn test_input_output() {
+        let ictx = RefCell::new(Box::new(ioctx::MockIoCtx::default()) as Box<ioctx::IoCtx>);
+        let val = b"value";
+        (*ictx.borrow_mut()).write_input(val);
+        let _status = ExecutionContext::new(ictx.borrow_mut(), ",[.[-],]").execute();
+        let mut buf = [0u8; 5];
+        let output = (*ictx.borrow_mut()).read_output(&mut buf);
+        assert_eq!(val, &buf);
     }
 }

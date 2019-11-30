@@ -47,11 +47,12 @@ fn get_command_line_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
-fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::RW> {
+fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::IoCtx> {
     match (use_utf8, use_unbuffered) {
-        (true, _) => Box::new(ioctx::StdUTF8IOContext::new()),
-        (_, true) => Box::new(ioctx::StdIOContext::new()), // ioctx::StdUnbufferedIOContext::new(),
-        _ => Box::new(ioctx::StdIOContext::new()),
+        // TODO: address
+        // (true, _) => Box::new(ioctx::StdUTF8IOContext::default()),
+        // (_, true) => Box::new(ioctx::StdIOContext::default()),
+        _ => Box::new(ioctx::StdIoCtx::default()),
     }
 }
 
