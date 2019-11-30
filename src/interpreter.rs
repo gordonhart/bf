@@ -19,8 +19,7 @@ pub enum ExecutionStatus<T> {
 
 pub struct ExecutionContext<'a> {
     pub status: ExecutionStatus<String>,
-    // ctx: Option<RefMut<'a, Box<dyn ioctx::RW>>>,
-    ctx: RefMut<'a, Box<dyn ioctx::RW>>,
+    ctx: Option<RefMut<'a, Box<dyn ioctx::RW>>>,
     data: Vec<u8>,
     data_ptr: usize,
     program: Vec<Token>,
@@ -40,12 +39,11 @@ impl<'a> Debug for ExecutionContext<'a> {
 }
 
 
-/*
 impl<'a> Default for ExecutionContext<'a> {
     fn default() -> Self {
         ExecutionContext {
             status: ExecutionStatus::NotStarted,
-            // ctx: None,
+            ctx: None,
             data: vec![0],
             data_ptr: 0,
             program: vec![],
@@ -54,24 +52,14 @@ impl<'a> Default for ExecutionContext<'a> {
         }
     }
 }
-*/
 
 
 impl<'a> ExecutionContext<'a> {
     pub fn new(ictx: RefMut<'a, Box<dyn ioctx::RW>>, program: &str) -> Self {
         ExecutionContext {
-            /*
-            ctx: ictx,
+            ctx: Some(ictx),
             program: Token::parse_str(program),
             ..ExecutionContext::default()
-            */
-            status: ExecutionStatus::NotStarted,
-            ctx: ictx,
-            data: vec![0],
-            data_ptr: 0,
-            program: Token::parse_str(program),
-            program_ptr: 0,
-            loop_stack: vec![],
         }
     }
 
@@ -164,35 +152,21 @@ impl<'a> ExecutionContext<'a> {
     }
 
     fn put_character(&mut self) {
-        // TODO: actually handle Result here
-        (*self.ctx).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
-        /*
-        self.ctx.and_then(|ictx| {
-            (*ictx).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
-            Some(())
-        });
-        */
+        if let Some(ctx_inner) = self.ctx.iter_mut().next() {
+            (*ctx_inner).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
+        };
     }
 
     fn get_character(&mut self) {
-        let mut buffer: [u8; 1] = [0; 1];
-        match (*self.ctx).read(&mut buffer[..]) {
-            Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
-            // TODO: why is reading nothing acceptable?
-            Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
-            Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
-        }
-        /*
-        if let Some(mut ictx) = &self.ctx {
+        if let Some(ctx_inner) = self.ctx.iter_mut().next() {
             let mut buffer: [u8; 1] = [0; 1];
-            match (*ictx).read(&mut buffer[..]) {
+            match (*ctx_inner).read(&mut buffer[..]) {
                 Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
                 // TODO: why is reading nothing acceptable?
                 Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
                 Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
-            }
-        }
-        */
+            };
+        };
     }
 
     fn find_loop_end(ptr: usize, program: &[Token]) -> Result<usize, ()> {
@@ -239,7 +213,6 @@ impl<'a> ExecutionContext<'a> {
 mod test {
     use super::*;
 
-    /*
     #[test]
     fn test_pointer_increment() {
         let mut ectx = ExecutionContext::default();
@@ -261,5 +234,4 @@ mod test {
         let program = vec![Token::PtrInc, Token::LoopEnd];
         assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
     }
-    */
 }
