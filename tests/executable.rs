@@ -140,28 +140,25 @@ fn test_cat() {
         .execute();
 }
 
-// TODO: reimplement unicode support
 #[test]
-#[ignore]
-fn test_cat_unicode() {
+fn test_cat_unicode_unbuffered() {
     let unicode_str: &str = "😸\n";
     TestCase::new()
-        .with_arg("--utf8")
+        .with_arg("--unbuffered")
         .with_arg(",[.[-],]")
         .with_input(unicode_str)
         .expect_stdout(unicode_str)
         .execute();
 }
 
-// TODO: reimplement unicode support
 #[test]
-#[ignore]
-fn test_cat_unicode_mangled() {
+fn test_cat_unicode() {
     let unicode_str: &str = "😸\n";
     TestCase::new()
         .with_arg(",[.[-],]")
         .with_input(unicode_str)
-        .expect_stdout("\u{f0}\u{9f}\u{98}\u{b8}\n")  // mangled cat when each byte is ASCII decoded
+        .expect_stdout(unicode_str)
+        // .expect_stdout("\u{f0}\u{9f}\u{98}\u{b8}\n")  // when each byte is ASCII decoded
         .expect_retcode(0)
         .execute();
 }

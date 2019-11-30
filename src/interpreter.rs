@@ -214,7 +214,7 @@ impl<'a> ExecutionContext<'a> {
 mod test {
     use super::*;
     use std::cell::RefCell;
-    use crate::ioctx;
+    use crate::ioctx::{InMemoryIoCtx, IoCtx};
 
     #[test]
     fn test_pointer_increment() {
@@ -240,12 +240,13 @@ mod test {
 
     #[test]
     fn test_input_output() {
-        let ictx = RefCell::new(Box::new(ioctx::MockIoCtx::default()) as Box<dyn ioctx::IoCtx>);
+        let ictx = RefCell::new(Box::new(InMemoryIoCtx::default()) as Box<dyn IoCtx>);
+        let mut ictx_ref = ictx.borrow_mut();
         let val = b"value";
-        (*ictx.borrow_mut()).write_input(val).unwrap();
-        let status = ExecutionContext::new(ictx.borrow_mut(), ",[.[-],]").execute();
+        ictx_ref.write_input(val).unwrap();
+        let status = ExecutionContext::new(ictx_ref, ",[.[-],]").execute();
         let mut buf = [0u8; 5];
-        let output = (*ictx.borrow_mut()).read_output(&mut buf);
+        let output = ictx.borrow_mut().read_output(&mut buf);
         assert_eq!(output.unwrap(), 5usize);
         assert_eq!(val, &buf);
         assert_eq!(status, ExecutionStatus::<String>::Terminated);

@@ -46,6 +46,25 @@ impl IoCtx for StdIoCtx {
 }
 
 
+/// Same as StdIoCtx but flushes on every output
+pub struct UnbufferedStdIoCtx { ctx: StdIoCtx }
+impl Default for UnbufferedStdIoCtx {
+    fn default() -> Self { Self { ctx: StdIoCtx::default() } }
+}
+
+impl IoCtx for UnbufferedStdIoCtx {
+    fn read_input(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.ctx.input.read(buf) }
+    fn write_output(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let result = self.ctx.output.write(buf)?;
+        match self.flush_output() {
+            Ok(_) => Ok(result),
+            Err(e) => Err(e),
+        }
+    }
+    fn flush_output(&mut self) -> io::Result<()> { self.ctx.output.flush() }
+}
+
+
 /// Struct wrapper for u8 vector implementing Read, Write traits
 struct ByteBuf {
     buf: Vec<u8>,
@@ -72,12 +91,12 @@ impl Write for ByteBuf {
 
 /// IOContext supporting reading from input buffer, writing to output buffer, both of which
 /// individually support both Read, Write or use in testing or other non-production environments
-pub struct MockIoCtx {
+pub struct InMemoryIoCtx {
     input: ByteBuf,
     output: ByteBuf,
 }
 
-impl Default for MockIoCtx {
+impl Default for InMemoryIoCtx {
     fn default() -> Self {
         Self {
             input: ByteBuf::default(),
@@ -86,7 +105,7 @@ impl Default for MockIoCtx {
     }
 }
 
-impl IoCtx for MockIoCtx {
+impl IoCtx for InMemoryIoCtx {
     fn read_input(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.input.read(buf) }
     fn write_input(&mut self, buf: &[u8]) -> io::Result<usize> { self.input.write(buf) }
     fn write_output(&mut self, buf: &[u8]) -> io::Result<usize> { self.output.write(buf) }

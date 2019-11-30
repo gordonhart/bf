@@ -15,11 +15,9 @@ use interpreter::{ExecutionStatus, ExecutionContext};
 static PROGRAM_ARG: &str = "program";
 static VERBOSE_ARG: &str = "verbose";
 static FILE_ARG: &str = "file";
-static UTF8_FLAG: &str = "utf8";
 static UNBUFFERED_FLAG: &str = "unbuffered";
 
 
-// explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {
     App::new("bfi")
         .version("0.1")
@@ -39,25 +37,19 @@ fn get_command_line_args() -> ArgMatches<'static> {
             .value_name("FILE")
             .conflicts_with(PROGRAM_ARG)
             .help("Program file to execute"))
-        .arg(Arg::with_name(UTF8_FLAG)
-            .short("u")
-            .long("utf8")
-            .takes_value(false)
-            .help("Use 8-bit Unicode output encoding"))
         .arg(Arg::with_name(UNBUFFERED_FLAG)
             .long("unbuffered")
             .takes_value(false)
-            .help("Do not buffer output"))
+            .help("Do not buffer output (note: may break output character encoding)"))
         .get_matches()
 }
 
 
-fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::IoCtx> {
-    match (use_utf8, use_unbuffered) {
-        // TODO: address
-        // (true, _) => Box::new(ioctx::StdUTF8IOContext::default()),
-        // (_, true) => Box::new(ioctx::StdIOContext::default()),
-        _ => Box::new(ioctx::StdIoCtx::default()),
+fn get_io_context(unbuffered: bool) -> Box<dyn ioctx::IoCtx> {
+    if unbuffered {
+        Box::new(ioctx::UnbufferedStdIoCtx::default())
+    } else {
+        Box::new(ioctx::StdIoCtx::default())
     }
 }
 
@@ -83,8 +75,7 @@ fn main() {
     // Creating the io_context inside a block like this ensures that it is dropped before the call
     // to std::process::exit, necessary to flush output buffer for stdout
     let retcode: i32 = {
-        let io_context = RefCell::new(
-            get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)));
+        let io_context = RefCell::new(get_io_context(opts.is_present(UNBUFFERED_FLAG)));
 
         let execution_status: ExecutionStatus<String> =
             ExecutionContext::new(io_context.borrow_mut(), program_string.as_str()).execute();
