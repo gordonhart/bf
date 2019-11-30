@@ -4,37 +4,23 @@ use std::default::Default;
 
 pub trait IoCtx {
     fn read_input(&mut self, buf: &mut [u8]) -> io::Result<usize>;
-    fn write_input(&mut self, buf: &[u8]) -> io::Result<usize> {
+    fn write_input(&mut self, _: &[u8]) -> io::Result<usize> {
         panic!("`write_input` unsupported for `StdIoCtx`");
     }
     fn write_output(&mut self, buf: &[u8]) -> io::Result<usize>;
-    fn read_output(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    fn read_output(&mut self, _: &mut [u8]) -> io::Result<usize> {
         panic!("`read_output` unsupported for `StdIoCtx`");
     }
     fn flush_output(&mut self) -> io::Result<()>;
 }
 
-// This workaround type wrapper for a generic T is directly in response to the error message:
-// = note: only traits defined in the current crate can be implemented for a type parameter
-// Solution taken from the error index: https://doc.rust-lang.org/error-index.html#E0210
-// struct IoCtxType<T>(T);
-
 impl Read for dyn IoCtx {
-// impl<T> Read for IoCtxType<T> where T: IoCtx {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.read_input(buf)
-    }
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.read_input(buf) }
 }
 
 impl Write for dyn IoCtx {
-// impl<T> Write for IoCtxType<T> where T: IoCtx {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.write_output(buf)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.flush_output()
-    }
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> { self.write_output(buf) }
+    fn flush(&mut self) -> io::Result<()> { self.flush_output() }
 }
 
 

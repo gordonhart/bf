@@ -9,11 +9,15 @@ mod interpreter;
 mod repl;
 mod token;
 
+use interpreter::{ExecutionStatus, ExecutionContext};
+
+
 static PROGRAM_ARG: &str = "program";
 static VERBOSE_ARG: &str = "verbose";
 static FILE_ARG: &str = "file";
 static UTF8_FLAG: &str = "utf8";
 static UNBUFFERED_FLAG: &str = "unbuffered";
+
 
 // explicitly specify 'static lifetime
 fn get_command_line_args() -> ArgMatches<'static> {
@@ -47,6 +51,7 @@ fn get_command_line_args() -> ArgMatches<'static> {
         .get_matches()
 }
 
+
 fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::IoCtx> {
     match (use_utf8, use_unbuffered) {
         // TODO: address
@@ -55,6 +60,7 @@ fn get_io_context(use_utf8: bool, use_unbuffered: bool) -> Box<dyn ioctx::IoCtx>
         _ => Box::new(ioctx::StdIoCtx::default()),
     }
 }
+
 
 fn main() {
     let opts = get_command_line_args();
@@ -74,27 +80,28 @@ fn main() {
         _ => panic!("bfi: argument error"),
     };
 
-    let io_context = RefCell::new(
-        get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)));
+    // Creating the io_context inside a block like this ensures that it is dropped before the call
+    // to std::process::exit, necessary to flush output buffer for stdout
+    let retcode: i32 = {
+        let io_context = RefCell::new(
+            get_io_context(opts.is_present(UTF8_FLAG), opts.is_present(UNBUFFERED_FLAG)));
 
-    let execution_status: interpreter::ExecutionStatus<String> =
-        interpreter::ExecutionContext::new(
-            io_context.borrow_mut(),
-            program_string.as_str(),
-        ).execute();
+        let execution_status: ExecutionStatus<String> =
+            ExecutionContext::new(io_context.borrow_mut(), program_string.as_str()).execute();
 
-    let retcode: i32 = match execution_status {
-        interpreter::ExecutionStatus::Terminated => {
-            if opts.is_present(VERBOSE_ARG) {
-                eprintln!("bfi: terminated without errors");
-            };
-            0
+        match execution_status {
+            ExecutionStatus::Terminated => {
+                if opts.is_present(VERBOSE_ARG) {
+                    eprintln!("bfi: terminated without errors");
+                };
+                0
+            }
+            ExecutionStatus::ProgramError(err) => {
+                eprintln!("bfi: exited with error: {}", err);
+                1
+            }
+            _ => panic!("bfi: internal error"),
         }
-        interpreter::ExecutionStatus::ProgramError(err) => {
-            eprintln!("bfi: exited with error: {}", err);
-            1
-        }
-        _ => panic!("bfi: internal error"),
     };
 
     std::process::exit(retcode);
