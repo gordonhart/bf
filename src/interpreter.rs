@@ -1,11 +1,14 @@
+use std::cell::RefMut;
 use std::default::Default;
 use std::fmt::{self, Debug};
+use std::io::{Read, Write};
 
-use crate::ioctx;
+use crate::ioctx::IoCtx;
 use crate::repl;
 use crate::token::Token;
 
-#[derive(Debug, Copy, Clone)]
+
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ExecutionStatus<T> {
     NotStarted,
     InProgress,
@@ -14,9 +17,10 @@ pub enum ExecutionStatus<T> {
     InternalError(T),
 }
 
-pub struct ExecutionContext {
-    status: ExecutionStatus<String>,
-    ctx: Box<dyn ioctx::RW>,
+
+pub struct ExecutionContext<'a> {
+    pub status: ExecutionStatus<String>,
+    ctx: Option<RefMut<'a, Box<dyn IoCtx>>>,
     data: Vec<u8>,
     data_ptr: usize,
     program: Vec<Token>,
@@ -24,7 +28,8 @@ pub struct ExecutionContext {
     loop_stack: Vec<usize>,
 }
 
-impl Debug for ExecutionContext {
+
+impl<'a> Debug for ExecutionContext<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -34,11 +39,12 @@ impl Debug for ExecutionContext {
     }
 }
 
-impl Default for ExecutionContext {
+
+impl<'a> Default for ExecutionContext<'a> {
     fn default() -> Self {
         ExecutionContext {
             status: ExecutionStatus::NotStarted,
-            ctx: Box::new(ioctx::StdIOContext::new()),
+            ctx: None,
             data: vec![0],
             data_ptr: 0,
             program: vec![],
@@ -48,10 +54,11 @@ impl Default for ExecutionContext {
     }
 }
 
-impl ExecutionContext {
-    pub fn new(ictx: Box<dyn ioctx::RW>, program: &str) -> Self {
+
+impl<'a> ExecutionContext<'a> {
+    pub fn new(ictx: RefMut<'a, Box<dyn IoCtx>>, program: &str) -> Self {
         ExecutionContext {
-            ctx: ictx,
+            ctx: Some(ictx),
             program: Token::parse_str(program),
             ..ExecutionContext::default()
         }
@@ -146,19 +153,21 @@ impl ExecutionContext {
     }
 
     fn put_character(&mut self) {
-        // TODO: actually handle Result here
-        (*self.ctx).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
+        if let Some(ctx_inner) = self.ctx.iter_mut().next() {
+            (*ctx_inner).write_all(&self.data[self.data_ptr..=self.data_ptr]).unwrap();
+        };
     }
 
     fn get_character(&mut self) {
-        // let mut buffer: [u8; 1024] = [0; 1024];
-        let mut buffer: [u8; 1] = [0; 1];
-        match (*self.ctx).read(&mut buffer[..]) {
-            Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
-            // TODO: why is reading nothing acceptable?
-            Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
-            Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
-        }
+        if let Some(ctx_inner) = self.ctx.iter_mut().next() {
+            let mut buffer: [u8; 1] = [0; 1];
+            match (*ctx_inner).read(&mut buffer[..]) {
+                Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
+                // TODO: why is reading nothing acceptable?
+                Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
+                Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
+            };
+        };
     }
 
     fn find_loop_end(ptr: usize, program: &[Token]) -> Result<usize, ()> {
@@ -201,10 +210,11 @@ impl ExecutionContext {
 }
 
 
-
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::cell::RefCell;
+    use crate::ioctx::{InMemoryIoCtx, IoCtx};
 
     #[test]
     fn test_pointer_increment() {
@@ -226,5 +236,19 @@ mod test {
     fn test_find_loop_end() {
         let program = vec![Token::PtrInc, Token::LoopEnd];
         assert_eq!(Ok(1), ExecutionContext::find_loop_end(0, &program));
+    }
+
+    #[test]
+    fn test_input_output() {
+        let ictx = RefCell::new(Box::new(InMemoryIoCtx::default()) as Box<dyn IoCtx>);
+        let mut ictx_ref = ictx.borrow_mut();
+        let val = b"value";
+        ictx_ref.write_input(val).unwrap();
+        let status = ExecutionContext::new(ictx_ref, ",[.[-],]").execute();
+        let mut buf = [0u8; 5];
+        let output = ictx.borrow_mut().read_output(&mut buf);
+        assert_eq!(output.unwrap(), 5usize);
+        assert_eq!(val, &buf);
+        assert_eq!(status, ExecutionStatus::<String>::Terminated);
     }
 }
