@@ -1,6 +1,7 @@
 extern crate bfi;
 
 
+// Run with `cargo run --example toy`
 fn main() {
     let program: &str = ",[.[-],]";
     let input: &[u8] = b"toy test!";
