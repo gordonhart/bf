@@ -15,4 +15,6 @@ path = "src/bin/main.rs"
 
 [dependencies]
 clap = "2.33.0"
+libc = "0.2.66"
+rand = "0.7.2"
 rustyline = "5.0.4"
