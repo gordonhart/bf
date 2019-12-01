@@ -5,3 +5,5 @@ Cargo.lock
 # vim tmp files
 *.swo
 *.swp
+
+__pycache__/
