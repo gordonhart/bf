@@ -251,4 +251,25 @@ mod test {
         assert_eq!(val, &buf);
         assert_eq!(status, ExecutionStatus::<String>::Terminated);
     }
+
+    #[test]
+    fn test_missing_close_bracket() {
+        for token in vec![Token::LoopBeg, Token::LoopEnd] {
+            let mut ectx = ExecutionContext::default();
+            ectx.program = vec![token];
+            let status = ectx.execute();
+            match status {
+                ExecutionStatus::ProgramError(_) => {},
+                _ => panic!(),
+            };
+        };
+    }
+
+    #[test]
+    fn test_debug_fmt() {
+        let mut ectx = ExecutionContext::default();
+        ectx.program = vec![Token::DebugDump];
+        let status = ectx.execute();
+        assert_eq!(status, ExecutionStatus::<String>::Terminated);
+    }
 }
