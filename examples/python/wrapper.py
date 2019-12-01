@@ -12,7 +12,10 @@ class BfExecResult(Structure):
 
 
 class BfWrapper(object):
-    ARGTYPES = [c_char_p, POINTER(c_uint8), c_uint]
+    FUNTYPES = {
+        "bf_exec": ([c_char_p, POINTER(c_uint8), c_uint], BfExecResult),
+        "bf_free": ([POINTER(c_uint8)], None),
+    }
 
     def __init__(self):
         this_file_directory = path.join(path.sep, *path.abspath(__file__).split(path.sep)[:-1])
@@ -20,13 +23,24 @@ class BfWrapper(object):
         if not path.exists(so_file):
             raise FileNotFoundError("missing library, have you run `cargo build --release`?")
         self.so = CDLL(so_file)
-        self.so.bf_exec.argtypes = self.ARGTYPES
-        self.so.bf_exec.restype = BfExecResult
+        self._declare_funtypes()
+
+    def _declare_funtypes(self) -> None:
+        for fname, (argtypes, restype) in self.FUNTYPES.items():
+            fun = getattr(self.so, fname)
+            fun.argtypes = argtypes
+            fun.restype = restype
 
     def bf_exec(self, program: bytes, program_input: Optional[bytes] = None) -> Tuple[bool, bytes]:
-        inp = program_input or b""
-        input_type = c_uint8 * len(inp)
-        result = self.so.bf_exec(program, input_type.from_buffer(bytearray(inp)), len(inp))
+        """Call to execute a program with an optional input byte buffer. Kind of funny that manually
+        freeing the result is necessary for leak-free interop between Python and Rust, neither of
+        which must be managed this way when used alone."""
+        input_bytes = program_input or b""
+        input_type = c_uint8 * len(input_bytes)
+        inp = input_type.from_buffer(bytearray(input_bytes))
+        result = self.so.bf_exec(program, inp, len(input_bytes))
         success = result.success == 1
         output = string_at(result.output, size=result.output_length)
+        # return the underlying pointer to Rust so the memory does not leak
+        self.so.bf_free(result.output)
         return success, output

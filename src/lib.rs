@@ -92,6 +92,17 @@ pub extern "C" fn bf_exec(
 }
 
 
+/// `CString::into_raw` transfers ownership of its memory to the holder of the raw pointer. This
+/// will leak unless this pointer is consumed by Rust back into a CString that is then dropped,
+/// hence this `bf_free` function.
+#[no_mangle]
+pub unsafe extern "C" fn bf_free(
+    to_free: *mut u8,
+) {
+    CString::from_raw(to_free as *mut i8);
+}
+
+
 #[cfg(test)]
 mod test {
     extern crate rand;
