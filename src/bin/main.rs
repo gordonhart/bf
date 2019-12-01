@@ -4,12 +4,8 @@ use std::cell::RefCell;
 
 use clap::{App, Arg, ArgMatches};
 
-mod ioctx;
-mod interpreter;
-mod repl;
-mod token;
-
-use interpreter::{ExecutionStatus, ExecutionContext};
+use bfi::ioctx::{IoCtx, StdIoCtx, UnbufferedStdIoCtx};
+use bfi::interpreter::{ExecutionStatus, ExecutionContext};
 
 
 static PROGRAM_ARG: &str = "program";
@@ -45,11 +41,11 @@ fn get_command_line_args() -> ArgMatches<'static> {
 }
 
 
-fn get_io_context(unbuffered: bool) -> Box<dyn ioctx::IoCtx> {
+fn get_io_context(unbuffered: bool) -> Box<dyn IoCtx> {
     if unbuffered {
-        Box::new(ioctx::UnbufferedStdIoCtx::default())
+        Box::new(UnbufferedStdIoCtx::default())
     } else {
-        Box::new(ioctx::StdIoCtx::default())
+        Box::new(StdIoCtx::default())
     }
 }
 
