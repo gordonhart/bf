@@ -16,7 +16,8 @@ pub enum Error<T> {
 }
 
 
-pub fn bf_execute(program: &str, input: &[u8]) -> Result<Vec<u8>, Error<String>> {
+#[no_mangle]
+pub extern fn bf_execute(program: &str, input: &[u8]) -> Result<Vec<u8>, Error<String>> {
     let ictx = RefCell::new(Box::new(InMemoryIoCtx::default()) as Box<dyn IoCtx>);
     let mut ictx_ref = ictx.borrow_mut();
     if let Err(_) = ictx_ref.write_input(&input[..]) {
@@ -47,7 +48,7 @@ pub fn bf_execute(program: &str, input: &[u8]) -> Result<Vec<u8>, Error<String>>
 
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
 
     #[test]
