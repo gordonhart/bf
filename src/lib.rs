@@ -21,7 +21,7 @@ pub enum Error<T> {
 }
 
 
-pub fn bf_execute(
+pub fn execute(
     program: &str,
     input: &[u8],
 ) -> Result<Vec<u8>, Error<String>> {
@@ -70,7 +70,7 @@ pub extern "C" fn bf_exec(
     let program_str: &str = unsafe { CStr::from_ptr(program).to_str().unwrap() };
     let input_slice: &[u8] = unsafe { CStr::from_ptr(input).to_bytes() };
 
-    let (success, output) = match bf_execute(program_str, input_slice) {
+    let (success, output) = match execute(program_str, input_slice) {
         Ok(v) => unsafe { (1, CString::from_vec_unchecked(v).into_raw()) },
         Err(_) => (0, CString::new("").unwrap().into_raw()),
     };
