@@ -14,10 +14,10 @@ class BfSierpinski(BfWrapper):
     """
 
     def __str__(self) -> str:
-        response = self.bf_exec(self.PROGRAM, b"")
-        if response.success != 1:
+        success, output = self.bf_exec(self.PROGRAM, b"")
+        if not success:
             raise RuntimeError("unable to compute")
-        return response.output.decode("utf-8")
+        return output.decode("utf-8")
 
 
 def sierpinski_native(n: int) -> str:

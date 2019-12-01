@@ -7,3 +7,6 @@ Cargo.lock
 *.swp
 
 __pycache__/
+
+# core dumps
+core

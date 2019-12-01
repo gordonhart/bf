@@ -10,16 +10,16 @@ class BfU8Adder(BfWrapper):
         if a > 255 or b > 255:
             raise OverflowError("received argument that does not fit in `u8`")
         args = b"".join([i.to_bytes(1, byteorder="big", signed=False) for i in [a, b]])
-        response = self.bf_exec(self.PROGRAM, args)
-        if response.success == 0:
+        success, output = self.bf_exec(self.PROGRAM, args)
+        if not success:
             raise RuntimeError("internal error: unable to add '%d' and '%d'" (a, b))
-        return response.output[0]
+        return output[0]
 
 
 if __name__ == "__main__":
     adder = BfU8Adder()
-    i = lambda: randint(1, 127)  # TODO: get bf implementation to properly read 0 bytes
+    i = lambda: randint(0, 127)
     for numbers in [(i(), i()) for _ in range(100)]:
         sum_of_numbers = adder(*numbers)
-        assert sum_of_numbers == sum(numbers)
         print("%3d + %3d = %3d" % (*numbers, sum_of_numbers))
+        assert sum_of_numbers == sum(numbers)
