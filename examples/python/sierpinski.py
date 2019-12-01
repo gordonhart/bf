@@ -27,7 +27,7 @@ def sierpinski_native(n: int) -> str:
         if _n == 0:
             return ["*"]
         else:
-            prev = inner(_n - 1)
+            prev = sierpinski_inner(_n - 1)
             prev_width = len(prev[-1])
             next_width = prev_width * 2 + 1
             next_iter = []
@@ -37,7 +37,7 @@ def sierpinski_native(n: int) -> str:
                 next_iter.insert(i, top)
                 next_iter.append(bottom)
             return next_iter
-    return "\n".join(inner(n)) + "\n"
+    return "%s\n" % "\n".join(sierpinski_inner(n))
 
 
 if __name__ == "__main__":

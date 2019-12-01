@@ -1,5 +1,6 @@
 extern crate rustyline;
 
+use std::default::Default;
 use std::iter::Iterator;
 
 use rustyline::Editor;
@@ -22,8 +23,8 @@ pub struct ReplInstance {
 }
 
 
-impl ReplInstance {
-    pub fn new() -> Self {
+impl Default for ReplInstance {
+    fn default() -> Self {
         println!(
             "\
 You have entered an interactive session. All regular commands are available.

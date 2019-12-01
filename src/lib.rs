@@ -29,7 +29,7 @@ pub fn execute(
 {
     let ictx = RefCell::new(Box::new(InMemoryIoCtx::default()) as Box<dyn IoCtx>);
     let mut ictx_ref = ictx.borrow_mut();
-    if let Err(_) = ictx_ref.write_input(&input[..]) {
+    if ictx_ref.write_input(&input[..]).is_err() {
         return Err(Error::InternalError("unable to open buffer".to_string()));
     };
     let status = ExecutionContext::new(ictx_ref, program).execute();
@@ -38,14 +38,9 @@ pub fn execute(
         ExecutionStatus::Terminated => {
             let mut output: Vec<u8> = Vec::new();
             let mut buf: [u8; 256] = [0; 256];
-            loop {
-                match ictx_ref.read_output(&mut buf) {
-                    Ok(n) => {
-                        if n == 0 { break };
-                        output.extend_from_slice(&buf[..n]);
-                    },
-                    Err(_) => break,
-                };
+            while let Ok(n) = ictx_ref.read_output(&mut buf) {
+                if n == 0 { break };
+                output.extend_from_slice(&buf[..n]);
             };
             Ok(output)
         },
@@ -64,37 +59,46 @@ pub struct BfExecResult {
 }
 
 
+// TODO: better Safety section
+/// # Safety
+///
+/// This function dereferences the raw pointers provided as inputs.
 #[no_mangle]
 #[deny(improper_ctypes)]  // TODO: this deny currently does not work
-pub extern "C" fn bf_exec(
+pub unsafe extern "C" fn bf_exec(
     program: *const c_char,
-    input: *const u8, // c_uchar,
+    input: *const u8,
     input_length: usize,
 ) -> BfExecResult
 {
-    let program_str: &str = unsafe { CStr::from_ptr(program).to_str().unwrap() };
-    let input_slice: &[u8] = unsafe { std::slice::from_raw_parts(input, input_length) };
+    let program_str: &str = CStr::from_ptr(program).to_str().unwrap(); // unsafe
+    let input_slice: &[u8] = std::slice::from_raw_parts(input, input_length); //unsafe
 
     let (success, output, output_length) = match execute(program_str, input_slice) {
-        Ok(v) => unsafe {
+        Ok(v) => {
             let l = v.len();
-            (1, CString::from_vec_unchecked(v).into_raw() as *mut u8, l)
+            (1, CString::from_vec_unchecked(v).into_raw() as *mut u8, l) // unsafe
         },
         // ends up pointing to garbage as the created vector is deallocated immediately
         Err(_) => (0, Vec::new().as_mut_ptr(), 0),
     };
 
     BfExecResult {
-        success: success,
-        output: output,
-        output_length: output_length,
+        success,
+        output,
+        output_length,
     }
 }
 
 
+// TODO: better Safety section
 /// `CString::into_raw` transfers ownership of its memory to the holder of the raw pointer. This
 /// will leak unless this pointer is consumed by Rust back into a CString that is then dropped,
 /// hence this `bf_free` function.
+///
+/// # Safety
+///
+/// This function dereferences the raw pointer provided as inputs.
 #[no_mangle]
 pub unsafe extern "C" fn bf_free(
     to_free: *mut u8,
@@ -132,7 +136,7 @@ mod test {
         let program: *const c_char = CString::new(ADD_PROGRAM).unwrap().into_raw();
         for _ in 0..1000 {
             rng.fill_bytes(&mut input[..]);
-            let result: BfExecResult = bf_exec(program, input.as_ptr(), input.len());
+            let result: BfExecResult = unsafe { bf_exec(program, input.as_ptr(), input.len()) };
             assert_eq!(result.success, 1u8);
             let expected_output: u8 = input[0].wrapping_add(input[1]);
             let actual_output: &[u8] = unsafe { std::slice::from_raw_parts(result.output, result.output_length) };

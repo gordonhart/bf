@@ -106,7 +106,7 @@ impl<'a> ExecutionContext<'a> {
 
     fn run_interactive(&mut self) {
         let program_ptr_before = self.program_ptr;
-        for cmd in repl::ReplInstance::new() {
+        for cmd in repl::ReplInstance::default() {
             match cmd {
                 repl::ReplResult::Command(cmd) => self.run_command(cmd),
                 repl::ReplResult::Quit => {
