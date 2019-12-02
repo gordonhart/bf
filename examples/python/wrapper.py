@@ -12,6 +12,7 @@ class BfExecResult(Structure):
 
 
 class BfWrapper(object):
+    LIBNAME = "libbfi.so"
     FUNTYPES = {
         "bf_exec": ([c_char_p, POINTER(c_uint8), c_size_t], BfExecResult),
         "bf_free": ([POINTER(c_uint8), c_size_t], None),
@@ -19,9 +20,11 @@ class BfWrapper(object):
 
     def __init__(self):
         this_file_directory = path.join(path.sep, *path.abspath(__file__).split(path.sep)[:-1])
-        so_file = path.join(this_file_directory, "..", "..", "target", "release", "libbfi.so")
+        so_file = path.join(this_file_directory, "..", "..", "target", "release", self.LIBNAME)
         if not path.exists(so_file):
-            raise FileNotFoundError("missing library, have you run `cargo build --release`?")
+            raise FileNotFoundError(
+                "missing %s, have you run `cargo build --release`?" % self.LIBNAMEi
+            )
         self.so = CDLL(so_file)
         self._declare_funtypes()
 
@@ -40,7 +43,12 @@ class BfWrapper(object):
         inp = input_type.from_buffer(bytearray(input_bytes))
         result = self.so.bf_exec(program, inp, len(input_bytes))
         success = result.success == 1
-        output = string_at(result.output, size=result.output_length)
-        # return the underlying pointer to Rust so the memory does not leak
-        self.so.bf_free(result.output, result.output_length)
+        output = string_at(result.output, size=result.output_length) if success else b""
+        # while the program won't crash if asked to free 0 bytes from an invalid location (which is
+        # what is returned when success == 0), it's best to not call this free unless we actually
+        # want to free the result -- bf certainly will crash if the length requested to be freed
+        # is >0 and the pointer is invalid
+        if success:
+            # return the underlying pointer to Rust so the memory does not leak
+            self.so.bf_free(result.output, result.output_length)
         return success, output
