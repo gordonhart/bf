@@ -25,8 +25,8 @@ impl Token {
             Token::GetChar => ',',
             Token::LoopBeg => '[',
             Token::LoopEnd => ']',
-            Token::DebugDump => '?',
-            Token::DebugBreakpoint => '!',
+            Token::DebugDump => '#',
+            Token::DebugBreakpoint => '%',
         }
     }
 
@@ -40,8 +40,8 @@ impl Token {
             ',' => Ok(Token::GetChar),
             '[' => Ok(Token::LoopBeg),
             ']' => Ok(Token::LoopEnd),
-            '?' => Ok(Token::DebugDump),
-            '!' => Ok(Token::DebugBreakpoint),
+            '#' => Ok(Token::DebugDump),
+            '%' => Ok(Token::DebugBreakpoint),
             other => Err(format!("unsupported character: {}", other)),
         }
     }
@@ -61,7 +61,7 @@ impl fmt::Display for Token {
 mod test {
     use super::*;
 
-    const SYMBOLS: &str = "><+-.,[]?!";
+    const SYMBOLS: &str = "><+-.,[]#%";
     const TOKENS: [Token; 10] = [
         Token::PtrInc,
         Token::PtrDec,

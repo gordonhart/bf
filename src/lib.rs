@@ -1,3 +1,6 @@
+//! An interactive [BrainF\*ck](https://en.wikipedia.org/wiki/Brainfuck)
+//! interpreter with executable, library, and foreign interfaces.
+
 extern crate libc;
 
 use std::cell::RefCell;
@@ -24,6 +27,21 @@ pub enum Error<T> {
 }
 
 
+/// Execute a program using the `bfi` interpreter. The output of the program (as placed by the `.`
+/// command) is returned as a vector.
+///
+/// # Examples
+///
+/// ```rust
+/// extern crate bfi;
+///
+/// fn main () {
+///     match bfi::execute(",>,<[->+<]>.", b"\x03\x04") {
+///         Ok(v) => println!("result of addition: {}", v[0]),
+///         Err(e) => eprintln!("error: {:?}", e),
+///     };
+/// }
+/// ```
 pub fn execute(
     program: &str,
     input: &[u8],
@@ -61,7 +79,8 @@ pub struct BfExecResult {
 }
 
 
-// TODO: better Safety section
+/// Interface to `bfi::execute` a program from foreign code.
+///
 /// # Safety
 ///
 /// This function dereferences the raw pointers provided as inputs. A fatal memory error will occur
@@ -104,6 +123,8 @@ pub unsafe extern "C" fn bf_exec(
 }
 
 
+/// Deallocate the memory containing the output of a previous call to `bf_exec`.
+///
 /// The output returned from `bf_exec` represents a vector in memory that has been forgotten by Rust
 /// and will thus not be automatically deallocated. In order to prevent this leakage, the caller o
 /// `bf_exec` should return this pointer back to Rust here such that it can be consumed and dropped.
@@ -114,6 +135,10 @@ pub unsafe extern "C" fn bf_exec(
 /// message like `free(): invalid pointer`, the provided pointer and length must match the location
 /// of a vector in memory that Rust has been told to forget about -- e.g., one returned as `output`
 /// and `output_length` from `bf_exec`.
+///
+/// See the
+/// [Safety section](https://doc.rust-lang.org/std/vec/struct.Vec.html#method.from_raw_parts) of
+/// `Vec::from_raw_parts` for more information.
 #[no_mangle]
 pub unsafe extern "C" fn bf_free(
     to_free: *mut c_uchar,
@@ -130,6 +155,7 @@ mod test {
 
     static ADD_PROGRAM: &str = ",>,<[->+<]>.";
 
+    // TODO: is it _really_ necessary to brute force through all u8 pairs _twice_ in these tests?
     #[test]
     fn test_addition() {
         for a in 0..=255 {

@@ -10,3 +10,6 @@ __pycache__/
 
 # core dumps
 core
+
+# example 'binaries'
+*.gif
