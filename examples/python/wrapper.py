@@ -1,4 +1,4 @@
-from ctypes import Structure, CDLL, POINTER, byref, string_at, c_uint8, c_char_p, c_uint
+from ctypes import Structure, CDLL, POINTER, byref, string_at, c_uint8, c_char_p, c_size_t
 from os import path
 from typing import Tuple, Optional
 
@@ -7,14 +7,14 @@ class BfExecResult(Structure):
     _fields_ = [
         ("success", c_uint8),
         ("output", POINTER(c_uint8)),
-        ("output_length", c_uint),
+        ("output_length", c_size_t),
     ]
 
 
 class BfWrapper(object):
     FUNTYPES = {
-        "bf_exec": ([c_char_p, POINTER(c_uint8), c_uint], BfExecResult),
-        "bf_free": ([POINTER(c_uint8)], None),
+        "bf_exec": ([c_char_p, POINTER(c_uint8), c_size_t], BfExecResult),
+        "bf_free": ([POINTER(c_uint8), c_size_t], None),
     }
 
     def __init__(self):
@@ -42,5 +42,5 @@ class BfWrapper(object):
         success = result.success == 1
         output = string_at(result.output, size=result.output_length)
         # return the underlying pointer to Rust so the memory does not leak
-        self.so.bf_free(result.output)
+        self.so.bf_free(result.output, result.output_length)
         return success, output

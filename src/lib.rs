@@ -1,9 +1,11 @@
 extern crate libc;
 
 use std::cell::RefCell;
-use std::ffi::{CStr, CString};
+use std::ffi::CStr;
+use std::mem;
+use std::slice;
 
-use libc::c_char;
+use libc::{c_char, size_t, c_uchar};
 
 use ioctx::{IoCtx, InMemoryIoCtx};
 use interpreter::{ExecutionStatus, ExecutionContext};
@@ -53,9 +55,9 @@ pub fn execute(
 
 #[repr(C)]
 pub struct BfExecResult {
-    success: u8,
-    output: *mut u8,
-    output_length: usize,
+    success: c_uchar, // u8
+    output: *mut c_uchar, // u8
+    output_length: size_t, // usize
 }
 
 
@@ -67,20 +69,26 @@ pub struct BfExecResult {
 #[deny(improper_ctypes)]  // TODO: this deny currently does not work
 pub unsafe extern "C" fn bf_exec(
     program: *const c_char,
-    input: *const u8,
-    input_length: usize,
+    input: *const c_uchar,
+    input_length: size_t,
 ) -> BfExecResult
 {
     let program_str: &str = CStr::from_ptr(program).to_str().unwrap(); // unsafe
-    let input_slice: &[u8] = std::slice::from_raw_parts(input, input_length); //unsafe
+    let input_slice: &[u8] = slice::from_raw_parts(input, input_length as usize); //unsafe
 
     let (success, output, output_length) = match execute(program_str, input_slice) {
-        Ok(v) => {
+        Ok(mut v) => {
+            v.shrink_to_fit();
             let l = v.len();
-            (1, CString::from_vec_unchecked(v).into_raw() as *mut u8, l) // unsafe
+            let ptr = v.as_mut_ptr();
+            // instruct rust to forget about this section of memory -- it will not only be
+            // deallocated if the vector is reassembled and dropped (see `bf_free`)
+            mem::forget(v);
+            (1, ptr, l)
         },
-        // ends up pointing to garbage as the created vector is deallocated immediately
-        Err(_) => (0, Vec::new().as_mut_ptr(), 0),
+        // point to garbage -- will certainly crash the program if this location is returned to
+        // `bf_free`, so it is up to the foreign caller to be responsible here (as always)
+        Err(_) => (0, 0 as *mut c_uchar, 0),
     };
 
     BfExecResult {
@@ -101,15 +109,18 @@ pub unsafe extern "C" fn bf_exec(
 /// This function dereferences the raw pointer provided as inputs.
 #[no_mangle]
 pub unsafe extern "C" fn bf_free(
-    to_free: *mut u8,
+    to_free: *mut c_uchar,
+    length: size_t,
 ) {
-    CString::from_raw(to_free as *mut i8);
+    Vec::from_raw_parts(to_free as *mut u8, length as usize, length as usize);
 }
 
 
 #[cfg(test)]
 mod test {
     extern crate rand;
+
+    use std::ffi::CString;
 
     use rand::RngCore;
 

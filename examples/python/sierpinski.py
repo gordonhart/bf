@@ -23,7 +23,7 @@ class BfSierpinski(BfWrapper):
 def sierpinski_native(n: int) -> str:
     """This implementation is directly translated from the Rust implementation in
     `tests/executable.rs`."""
-    def inner(_n: int) -> List[str]:
+    def sierpinski_inner(_n: int) -> List[str]:
         if _n == 0:
             return ["*"]
         else:
