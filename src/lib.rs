@@ -17,12 +17,16 @@ use interpreter::{ExecutionStatus, ExecutionContext};
 pub mod ioctx;
 pub mod interpreter;
 pub mod token;
-pub mod repl;
+mod repl;
 
 
+/// The different ways the execution of a program can fail.
 #[derive(Debug)]
 pub enum Error<T> {
+    /// A 'you' problem.
     ProgramError(T),
+
+    /// A 'me' problem.
     InternalError(T),
 }
 
@@ -71,11 +75,19 @@ pub fn execute(
 }
 
 
+/// Result structure communicating the status of a call to `bf_exec` in a foreign-friendly way.
 #[repr(C)]
 pub struct BfExecResult {
-    success: c_uchar, // u8
-    output: *mut c_uchar, // u8
-    output_length: size_t, // usize
+    /// Impoverished boolean (`match success { 1 => true, 0 => false }`) indicating  the final
+    /// status of the program producing this `BfExecResult`.
+    pub success: c_uchar, // u8
+
+    /// Raw pointer to the start of the memory section containing the output of the program.
+    pub output: *mut c_uchar, // u8
+
+    /// Length of the program output, required as many valid programs will output `\x00` bytes,
+    /// preventing the usage of a NUL-terminated string for program output.
+    pub output_length: size_t, // usize
 }
 
 
