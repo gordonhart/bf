@@ -1,5 +1,6 @@
 extern crate rustyline;
 
+use std::default::Default;
 use std::iter::Iterator;
 
 use rustyline::Editor;
@@ -22,8 +23,8 @@ pub struct ReplInstance {
 }
 
 
-impl ReplInstance {
-    pub fn new() -> Self {
+impl Default for ReplInstance {
+    fn default() -> Self {
         println!(
             "\
 You have entered an interactive session. All regular commands are available.
@@ -48,8 +49,8 @@ impl Iterator for ReplInstance {
             let input_line = self.editor.readline("bfi $ ");
             match input_line {
                 // TODO: merge these two arms?
-                Ok(line) if line == "q" => Some(ReplResult::Quit),
                 Err(ReadlineError::Eof) | Err(ReadlineError::Interrupted) => Some(ReplResult::Quit),
+                Ok(line) if line == "q" => Some(ReplResult::Quit),
                 // exits cleanly out of the REPL by ending iteration
                 Ok(line) if line == "c" => None,
                 Ok(line) => {

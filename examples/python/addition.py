@@ -1,16 +1,16 @@
 from random import randint
 
-from wrapper import BfWrapper
+from bindings import BfBindings
 
 
-class BfU8Adder(BfWrapper):
+class BfU8Adder(BfBindings):
     PROGRAM = b",>,<[->+<]>."
 
     def __call__(self, a: int, b: int) -> int:
         if a > 255 or b > 255:
             raise OverflowError("received argument that does not fit in `u8`")
         args = b"".join([i.to_bytes(1, byteorder="big", signed=False) for i in [a, b]])
-        success, output = self.bf_exec(self.PROGRAM, args)
+        success, output = self.execute(self.PROGRAM, args)
         if not success:
             raise RuntimeError("internal error: unable to add '%d' and '%d'" (a, b))
         return output[0]

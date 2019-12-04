@@ -1,3 +1,5 @@
+//! The interpreter resposible for executing programs.
+
 use std::cell::RefMut;
 use std::default::Default;
 use std::fmt::{self, Debug};
@@ -8,16 +10,30 @@ use crate::repl;
 use crate::token::Token;
 
 
+/// Current status of the interpreter.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ExecutionStatus<T> {
+    /// Indicates a newly created `ExecutionContext` that has not begun execution of a program.
     NotStarted,
+
+    /// Indicates a healthy `ExecutionContext` currently executing a program.
     InProgress,
+
+    /// Indicates termination of the program without errors.
     Terminated,
+
+    /// Indicates termination with a 'you' problem (e.g. HTTP 400s).
     ProgramError(T),
+
+    /// Indicates termination with a 'me' problem (e.g. HTTP 500s).
     InternalError(T),
 }
 
 
+/// The internal state of a BrainF\*ck program.
+///
+/// Note that only the `status` is visible. If you are interested in inspecting the state during
+/// execution, use the REPL by putting a debug breakpoint (`%`) in your program!
 pub struct ExecutionContext<'a> {
     pub status: ExecutionStatus<String>,
     ctx: Option<RefMut<'a, Box<dyn IoCtx>>>,
@@ -56,6 +72,8 @@ impl<'a> Default for ExecutionContext<'a> {
 
 
 impl<'a> ExecutionContext<'a> {
+    /// Create a new `ExecutionContext` with the provided I/O context and program. Typically called
+    /// immediately before `execute`.
     pub fn new(ictx: RefMut<'a, Box<dyn IoCtx>>, program: &str) -> Self {
         ExecutionContext {
             ctx: Some(ictx),
@@ -64,6 +82,9 @@ impl<'a> ExecutionContext<'a> {
         }
     }
 
+    /// Execute the program and return the resulting `ExecutionStatus`.
+    ///
+    /// The output of the program itself is obtained in other ways, see `ioctx::IoCtx`.
     pub fn execute(&mut self) -> ExecutionStatus<String> {
         self.run();
         self.status.clone()
@@ -106,7 +127,7 @@ impl<'a> ExecutionContext<'a> {
 
     fn run_interactive(&mut self) {
         let program_ptr_before = self.program_ptr;
-        for cmd in repl::ReplInstance::new() {
+        for cmd in repl::ReplInstance::default() {
             match cmd {
                 repl::ReplResult::Command(cmd) => self.run_command(cmd),
                 repl::ReplResult::Quit => {
