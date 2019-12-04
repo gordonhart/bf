@@ -15,8 +15,8 @@ fn main() -> Result<(), zmq::Error> {
     let socket = ctx.socket(zmq::REQ)?;
     socket.connect("tcp://127.0.0.1:12345")?;
 
-    let a: u8 = args.value_of("a").unwrap().parse::<u8>().unwrap();
-    let b: u8 = args.value_of("b").unwrap().parse::<u8>().unwrap();
+    let a: u8 = args.value_of("a").unwrap().parse().expect("arg \"a\" error");
+    let b: u8 = args.value_of("b").unwrap().parse().expect("arg \"b\" error");
     let input = vec![a, b];
     socket.send(input, 0i32)?;
 
