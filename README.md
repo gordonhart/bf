@@ -60,9 +60,10 @@ program:
 ```
 
 Recognize it? It's our friend, `cat`. It reads from stdin and spits it out to
-stdout until EOF is received. My productivity skyrocketed after aliasing 😸 to
-it in my shell. Who doesn't have an emoji keyboard open at all times and who
-_really_ needs options like `--help` from their command line utilities?
+stdout until a NUL terminator is received. My productivity skyrocketed after
+aliasing 😸 to it in my shell. Not having to worry about a `cat` implementation
+I don't understand freed up a ton of headspace better spent visualizing tape.
+Who _really_ needs options like `--help` from their command line utilities?
 
 Example usage:
 
@@ -102,7 +103,7 @@ depth or proprietary codecs or just let GPT-2 make your excuse up for you.
 
 
 Serious face this time: the secondary purpose of this project is the
-interpreter; the primary purpose is to learn Rust.
+interpreter; its primary purpose is as a playground to learn Rust.
 
 
 ## Objectives
