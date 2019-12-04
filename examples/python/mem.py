@@ -17,7 +17,7 @@ if __name__ == "__main__":
     n = 2048
     bf = BfBindings()
 
-    print("demonstration that `bf_free` actually works")
+    print("demonstration of efficacy of `bf_free`")
     print("=" * 60)
 
     memusage_before = get_max_resident_memory_usage_kb()

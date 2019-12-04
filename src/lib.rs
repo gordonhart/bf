@@ -212,4 +212,20 @@ mod test {
             };
         };
     }
+
+    #[test]
+    fn test_foreign_program_invalid_unicode() {
+        let program = b"\x81";
+        let program_ptr = program.as_ptr() as *const c_char;
+        let result = unsafe { bf_exec(program_ptr, [].as_ptr(), 0) };
+        assert_eq!(result.success, 0u8);
+    }
+
+    #[test]
+    fn test_foreign_program_error() {
+        let program = b"[";
+        let program_ptr = program.as_ptr() as *const c_char;
+        let result = unsafe { bf_exec(program_ptr, [].as_ptr(), 0) };
+        assert_eq!(result.success, 0u8);
+    }
 }
