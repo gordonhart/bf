@@ -70,6 +70,17 @@ impl ioctx::IoCtx for ZmqRepServerIoCtx {
         }
     }
 
+    // Note that, as a bf program always writes a single byte at a time, this impl is only good for
+    // sending a single-byte response. This is acceptable for the addition server case as the result
+    // is always exactly one byte, but is clearly unacceptable for a less trivial result.
+    //
+    // Valid workarounds include:
+    //   - Using a different socket type that is not strictly alternating like REQ/REP -- replacing
+    //     this socket with, say, a ROUTER socket, would allow as many writes in a row as necessary,
+    //     at the cost of having to store the return address and send it on each single-byte write
+    //   - Implementing only the workload in bf (in this example both workload and control flow are
+    //     handled by the bf program), moving the ZMQ send to `flush_output` and writing bytes to an
+    //     internal buffer until flush is called, then manually flushing after the bf program exits
     fn write_output(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
         let flags = 0i32;
         match &self.status {
