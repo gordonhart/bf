@@ -2,8 +2,6 @@ from pathlib import Path
 from typing import Optional
 import zlib
 
-from wrapper import BfWrapper
-
 
 class DeceptionEnabler(object):
     """Make sure to put `*.bf` in your .gitignore!"""

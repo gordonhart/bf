@@ -90,7 +90,7 @@ mod test {
     #[test]
     fn decoding() {
         for (c, &t) in SYMBOLS.chars().zip(TOKENS.into_iter()) {
-            let decoded: Result<Token, String> = Token::decode(c);
+            let decoded: Result<Token, char> = Token::decode(c);
             assert_eq!(decoded.is_ok(), true);
             assert_eq!(decoded.unwrap(), t);
         }

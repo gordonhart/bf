@@ -5,7 +5,7 @@ from os import path
 from typing import Tuple, Optional
 
 
-class BfExecResult(Structure):
+class _BfExecResult(Structure):
     _fields_ = [
         ("success", c_uint8),
         ("output", POINTER(c_uint8)),
@@ -13,10 +13,10 @@ class BfExecResult(Structure):
     ]
 
 
-class BfWrapper(object):
+class BfBindings(object):
     LIBNAME = "libbfi"
     FUNTYPES = {
-        "bf_exec": ([c_char_p, POINTER(c_uint8), c_size_t], BfExecResult),
+        "bf_exec": ([c_char_p, POINTER(c_uint8), c_size_t], _BfExecResult),
         "bf_free": ([POINTER(c_uint8), c_size_t], None),
     }
 

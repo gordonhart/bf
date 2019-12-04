@@ -1,10 +1,10 @@
 import time
 from typing import List
 
-from wrapper import BfWrapper
+from bindings import BfBindings
 
 
-class BfSierpinski(BfWrapper):
+class BfSierpinski(BfBindings):
     PROGRAM = b"""
         ++++++++[>+>++++<<-]>++>>+<[-[>>+<<-]+>>]>+[
             -<<<[

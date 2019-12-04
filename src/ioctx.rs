@@ -79,6 +79,8 @@ impl Default for StdIoCtx {
     }
 }
 
+/// # Panics
+///
 /// Note that `write_input` and `read_output` are not implemented here, meaning the default
 /// `panic!` implementation is used.
 impl IoCtx for StdIoCtx {
@@ -94,6 +96,10 @@ impl Default for UnbufferedStdIoCtx {
     fn default() -> Self { Self { ctx: StdIoCtx::default() } }
 }
 
+/// # Panics
+///
+/// The default implementations for `write_input` and `read_output` are used here which panic
+/// unconditionally.
 impl IoCtx for UnbufferedStdIoCtx {
     fn read_input(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.ctx.input.read(buf) }
     fn write_output(&mut self, buf: &[u8]) -> io::Result<usize> {

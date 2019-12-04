@@ -10,7 +10,7 @@ language and `bfi` is your interpreter.
 Once you bite the bullet, jump in, and get acclimated, you'll wonder why you
 ever waited. Without built-in support for variable names, a garbage collector,
 concurrency, syscalls, literals, objects, inheritance, types, syntax, floating
-point, keywords, a stack, a heap, best practices, or Stack Overflow there are
+point, keywords, data structures, best practices, or Stack Overflow there are
 almost no ways left for you to shoot yourself in the foot.
 
 Of course, if you're feeling a moment of human weakness, it would be possible
@@ -86,14 +86,14 @@ to embark on a fantastical journey to the foreign land of `bfi` + FFI.
 
 Well, not so fantastical. You can work with `libbfi` the same way you'd
 incorporate any foreign object into your project. See
-`examples/python/wrapper.py` for a Python implementation using `ctypes`.
+`examples/python/bindings.py` for a Python integration using `ctypes`.
 
 Further, `examples/python/trick_your_boss.py` contains a minimal framework for
 surreptitiously programming in BrainF\*ck at work under your manager's nose.
 Don't worry about the resulting proliferation of binary blobs in your repo, odds
 are s/he doesn't even review your code. On the off chance you get a question
 about all of the "corrupt GIFs" appearing, make something up about the pixel
-depth or Flash or just let GPT-2 make it up for you.
+depth or proprietary codecs or just let GPT-2 make your excuse up for you.
 
 
 ---
@@ -106,6 +106,7 @@ interpreter; the primary purpose is to learn Rust.
 
 
 ## Objectives
+
 - Idiomatic Rust language usage
 - Correct BF implementation
 - Standard command line niceties:
@@ -123,13 +124,13 @@ interpreter; the primary purpose is to learn Rust.
 
 
 ## TODOs
+
 - [x] Accept and ignore non-command characters instead of failing (comments)
 - [x] Integrate `readline` for REPL input
-- [ ] Write docstrings
+- [x] Write docstrings
 - [x] Support running from file with `-f` and `--filename`
 - [x] Add `-h`/`--help` usage flag
 - [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
 - [x] Implement close-to-full test coverage
 - [x] Apply `rustfmt` formatting
-- [x] Support unicode output with `-u`/`--utf8` flag
-- [ ] Implement direct-to-file output with `-o`/`--output` flag
+- [x] Document all `panic!` cases with a `# Panics` docstring section

@@ -1,9 +1,9 @@
 from random import randint
 
-from wrapper import BfWrapper
+from bindings import BfBindings
 
 
-class BfU8Adder(BfWrapper):
+class BfU8Adder(BfBindings):
     PROGRAM = b",>,<[->+<]>."
 
     def __call__(self, a: int, b: int) -> int:

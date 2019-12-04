@@ -90,6 +90,16 @@ pub struct BfExecResult {
     pub output_length: size_t, // usize
 }
 
+impl BfExecResult {
+    fn default_failure() -> Self {
+        Self {
+            success: 0,
+            output: std::ptr::null_mut() as *mut c_uchar,
+            output_length: 0,
+        }
+    }
+}
+
 
 /// Interface to `bfi::execute` a program from foreign code.
 ///
@@ -106,10 +116,15 @@ pub unsafe extern "C" fn bf_exec(
     input_length: size_t,
 ) -> BfExecResult
 {
-    let program_str: &str = CStr::from_ptr(program).to_str().unwrap(); // unsafe
+    let program_str: &str = match CStr::from_ptr(program).to_str() { // unsafe
+        Ok(s) => s,
+        // return failure if the program provided is not valid unicode
+        Err(_) => return BfExecResult::default_failure(),
+    };
+
     let input_slice: &[u8] = slice::from_raw_parts(input, input_length as usize); //unsafe
 
-    let (success, output, output_length) = match execute(program_str, input_slice) {
+    match execute(program_str, input_slice) {
         Ok(mut v) => {
             // ensure v.len() == v.capacity() such that the capacity of the vector does not need to
             // be shared with the foreign caller in order for the subsequent call to `bf_free` to
@@ -117,20 +132,18 @@ pub unsafe extern "C" fn bf_exec(
             v.shrink_to_fit();
             let l = v.len();
             let ptr = v.as_mut_ptr();
-            // instruct rust to forget about this section of memory -- it will not only be
+            // instruct rust to forget about this section of memory -- it will only be
             // deallocated if the vector is reassembled and dropped (see `bf_free`)
             mem::forget(v);
-            (1, ptr, l)
+            BfExecResult {
+                success: 1,
+                output: ptr,
+                output_length: l,
+            }
         },
         // point to garbage -- will certainly crash the program if this location is returned to
         // `bf_free`, so it is up to the foreign caller to be responsible here (as always)
-        Err(_) => (0, std::ptr::null_mut() as *mut c_uchar, 0),
-    };
-
-    BfExecResult {
-        success,
-        output,
-        output_length,
+        Err(_) => BfExecResult::default_failure(),
     }
 }
 
