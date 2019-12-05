@@ -82,11 +82,11 @@ fn main() {
                     eprintln!("bfi: terminated without errors");
                 };
                 0
-            }
-            ExecutionStatus::ProgramError(err) => {
+            },
+            ExecutionStatus::ProgramError(err) | ExecutionStatus::InternalError(err) => {
                 eprintln!("bfi: exited with error: {}", err);
                 1
-            }
+            },
             _ => panic!("bfi: internal error"),
         }
     };
