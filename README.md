@@ -50,7 +50,7 @@ Plus two more `bfi` extension commands:
 | `%` | Enter into a REPL |
 
 
-## Example
+## An Example
 
 Now that you have the language down pat we can jog our legs with a gumball
 program:
@@ -71,23 +71,37 @@ Example usage:
 $ <README.md bfi ',[.[-],]'
 ```
 
-Yes, GNU `cat` supports interior NUL bytes and this program does not. Go away.
+Yes, GNU `cat` supports interior NUL bytes and this program does not. Those
+invalid unicode bytes in that binary you accidentally catted would have messed
+up your terminal's encoding anyway.
 
 
-# `bfi` as a Library
+## The Details
+
+To clear up some of the ambiguity around the behavior of this BrainF\*ck
+implmentation:
+
+- The roll of tape is infinite in both directions. You are free to travel along
+  it as you wish and fresh cells will be allocated ahead of you until your OS
+  decides otherwise.
+- Cells hold a single byte (i.e. value on [0, 255]), are initialized to zero,
+  and wrap on over or underflow.
+- If input is requested (`,`) when none is available the interpreter will move
+  on without action.
+
+
+## `bfi` as a Library
 
 Luckily for you Rust programmers, `bfi` has a library interface! See
 `examples/toy.rs` for a starting point.
 
-## Foreign Usage
+### Foreign Usage
 
 Some hope remains for those of us forced to use a tired language like Python
-in our professionial environments. Check your despair at the gate, we're about
-to embark on a fantastical journey to the foreign land of `bfi` + FFI.
-
-Well, not so fantastical. You can work with `libbfi` the same way you'd
-incorporate any foreign object into your project. See
-`examples/python/bindings.py` for a Python integration using `ctypes`.
+in our professionial environments. Check your despair at the gate — you can work
+with `libbfi` the same way you'd incorporate any foreign object into your
+project. See `examples/python/bindings.py` for a Python integration using
+`ctypes`.
 
 Further, `examples/python/trick_your_boss.py` contains a minimal framework for
 surreptitiously programming in BrainF\*ck at work under your manager's nose.
@@ -102,8 +116,10 @@ depth or proprietary codecs or just let GPT-2 make your excuse up for you.
 ---
 
 
-Serious face this time: the secondary purpose of this project is the
-interpreter; its primary purpose is as a playground to learn Rust.
+Serious face: the secondary purpose of this project is the interpreter; its
+primary purpose is as a playground to learn Rust. It's my first stab at the
+language and its ecosystem and it's probably not the highest quality or most
+idiomatic codebase out there. Take what you see here with a grain of salt.
 
 
 ## Objectives

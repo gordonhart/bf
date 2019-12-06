@@ -65,7 +65,7 @@ fn main() {
         // default to REPL if no program provided
         (None, None) => "!".to_string(),
         // final arm should never be reached due to mutual `conflicts_with`
-        _ => panic!("bfi: argument error"),
+        _ => unreachable!(),
     };
 
     // Creating the io_context inside a block like this ensures that it is dropped before the call
