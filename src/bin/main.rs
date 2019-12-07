@@ -19,7 +19,7 @@ fn get_command_line_args() -> ArgMatches<'static> {
         .version("0.1")
         .about("BrainF*ck language interpreter")
         .arg(Arg::with_name(PROGRAM_ARG)
-            .help("Program to execute")
+            .help("Program to execute, or launch interactive session if no prorgram is provided")
             .conflicts_with(FILE_ARG)
             .index(1))
         .arg(Arg::with_name(VERBOSE_ARG)
