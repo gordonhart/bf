@@ -72,8 +72,8 @@ $ <README.md bfi ',[.[-],]'
 ```
 
 Yes, GNU `cat` supports interior NUL bytes and this program does not. Those
-invalid unicode bytes in that binary you accidentally catted would have messed
-up your terminal's encoding anyway.
+invalid unicode sequences in that binary you accidentally catted would only
+have messed up your terminal's encoding anyway.
 
 
 ## The Details
@@ -94,6 +94,11 @@ implmentation:
 
 Luckily for you Rust programmers, `bfi` has a library interface! See
 `examples/toy.rs` for a starting point.
+
+BrainF\*ck is an excellent language to implement the workload of your networked
+application in. See `examples/{server,client}.rs` for a simple number cruncher
+microservice and client communicating using
+[ZeroMQ](https://zeromq.org/socket-api/).
 
 ### Foreign Usage
 
