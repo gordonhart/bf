@@ -104,10 +104,8 @@ impl IoCtx for UnbufferedStdIoCtx {
     fn read_input(&mut self, buf: &mut [u8]) -> io::Result<usize> { self.ctx.input.read(buf) }
     fn write_output(&mut self, buf: &[u8]) -> io::Result<usize> {
         let result = self.ctx.output.write(buf)?;
-        match self.flush_output() {
-            Ok(_) => Ok(result),
-            Err(e) => Err(e),
-        }
+        self.flush_output()?;
+        Ok(result)
     }
     fn flush_output(&mut self) -> io::Result<()> { self.ctx.output.flush() }
 }

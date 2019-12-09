@@ -97,6 +97,15 @@ mod test {
     }
 
     #[test]
+    fn decoding_comments() {
+        let program: &str = "0>something <+\t-.else,[]#\nentirely 💁%";
+        let program_decoded: Vec<Token> = Token::parse_str(program);
+        for (&c, &t) in program_decoded.iter().zip(TOKENS.into_iter()) {
+            assert_eq!(c, t);
+        }
+    }
+
+    #[test]
     fn encoding() {
         for (c, &t) in SYMBOLS.chars().zip(TOKENS.into_iter()) {
             assert_eq!(Token::encode(t), c);

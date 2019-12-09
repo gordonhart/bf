@@ -24,6 +24,14 @@ analysis to the machines like [GPT-2](https://github.com/openai/gpt-2) that are
 good at them and focus only on stuff you, as a human, are naturally good at:
 pointer arithmetic, rigid control flow, and data encoding.
 
+You know that feeling of dejection when you go to learn a new language and see
+that it has an [entire book](https://doc.rust-lang.org/book/) written about it,
+an [estranged sequel](https://doc.rust-lang.org/nomicon/) whose existence is
+denied by most, and even some
+[aspirational fanfiction](https://rust-lang.github.io/async-book/01_getting_started/01_chapter.html)
+in the works? Don't you just wish everything you needed to know about your new
+language fit in a single README section? Bear with me here for a little longer.
+
 Imagine you're back on the primordial savannah but instead of a spear in your
 hand it's a pointer and instead of lush grassland around you it's a single
 dimensional roll of tape extending forever off into the point horizon. If you
@@ -49,8 +57,12 @@ Plus two more `bfi` extension commands:
 | `#` | Dump program internals to `stderr` |
 | `%` | Enter into a REPL |
 
+Every other character is a comment. Feel free to annotate your code with as many
+emoji as you think are reasonable for an adult to put into a text file and use
+whatever limp or virile indentation strategy floats your boat.
 
-## Example
+
+## An Example
 
 Now that you have the language down pat we can jog our legs with a gumball
 program:
@@ -71,23 +83,58 @@ Example usage:
 $ <README.md bfi ',[.[-],]'
 ```
 
-Yes, GNU `cat` supports interior NUL bytes and this program does not. Go away.
+Yes, GNU `cat` supports interior NUL bytes and this program does not. Those
+invalid unicode sequences in that binary you accidentally catted would only
+have messed up your terminal's encoding anyway.
 
 
-# `bfi` as a Library
+## The Details
+
+To clear up some of the ambiguity around the behavior of this BrainF\*ck
+implmentation:
+
+- The roll of tape is infinite in both directions. You are free to travel along
+  it as you wish and fresh cells will be allocated ahead of you until your OS
+  decides otherwise.
+- Cells hold a single byte (i.e. value on `[0, 255]`), are initialized to zero,
+  and wrap on over or underflow.
+- If input is requested (`,`) when none is available the interpreter will move
+  on without action.
+
+
+## Usage
+
+Compile `bfi` as you would any other Rust project not provided prepacked through
+standard channels:
+
+```
+$ cargo build --release
+```
+
+From there, figure it out:
+
+```
+$ ./bfi --help
+```
+
+
+## `bfi` as a Library
 
 Luckily for you Rust programmers, `bfi` has a library interface! See
 `examples/toy.rs` for a starting point.
 
-## Foreign Usage
+BrainF\*ck is an excellent language to implement the workload of your networked
+application in. See `examples/{server,client}.rs` for a simple number cruncher
+microservice and example client communicating using
+[ZeroMQ](https://zeromq.org/socket-api/).
+
+### Foreign Usage
 
 Some hope remains for those of us forced to use a tired language like Python
-in our professionial environments. Check your despair at the gate, we're about
-to embark on a fantastical journey to the foreign land of `bfi` + FFI.
-
-Well, not so fantastical. You can work with `libbfi` the same way you'd
-incorporate any foreign object into your project. See
-`examples/python/bindings.py` for a Python integration using `ctypes`.
+in our professionial environments. Check your despair at the gate — you can work
+with `libbfi` the same way you'd incorporate any foreign object into your
+project. See `examples/python/bindings.py` for a Python integration using
+`ctypes`.
 
 Further, `examples/python/trick_your_boss.py` contains a minimal framework for
 surreptitiously programming in BrainF\*ck at work under your manager's nose.
@@ -102,36 +149,7 @@ depth or proprietary codecs or just let GPT-2 make your excuse up for you.
 ---
 
 
-Serious face this time: the secondary purpose of this project is the
-interpreter; its primary purpose is as a playground to learn Rust.
-
-
-## Objectives
-
-- Idiomatic Rust language usage
-- Correct BF implementation
-- Standard command line niceties:
-    - Option to run program from argument
-    - Option to run program from file
-    - Read program input from stdin
-    - Proper exit code setting
-    - Expected options like `--help`
-    - Expected behavior on SIGINT, EOF, SIGTERM, etc.
-- Reasonable performance and resource usage (nothing dumb)
-- Reasonable usage of `panic!` (and things that cause it, like `unwrap`)
-- Non-negligible test coverage
-- No compiler warnings
-- No [clippy](https://github.com/rust-lang/rust-clippy) warnings
-
-
-## TODOs
-
-- [x] Accept and ignore non-command characters instead of failing (comments)
-- [x] Integrate `readline` for REPL input
-- [x] Write docstrings
-- [x] Support running from file with `-f` and `--filename`
-- [x] Add `-h`/`--help` usage flag
-- [x] Add `-v`/`--verbose` flag to print extra information (like exit message)
-- [x] Implement close-to-full test coverage
-- [x] Apply `rustfmt` formatting
-- [x] Document all `panic!` cases with a `# Panics` docstring section
+Serious face: the secondary purpose of this project is the interpreter; its
+primary purpose is as a playground to learn Rust. It's my first stab at the
+language and its ecosystem and it's probably not the highest quality or most
+idiomatic codebase out there. Take what you see here with a grain of salt.

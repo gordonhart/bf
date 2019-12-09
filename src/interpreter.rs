@@ -184,8 +184,9 @@ impl<'a> ExecutionContext<'a> {
             let mut buffer: [u8; 1] = [0; 1];
             match (*ctx_inner).read(&mut buffer[..]) {
                 Ok(n) if n == 1 => self.data[self.data_ptr] = buffer[0],
-                // TODO: why is reading nothing acceptable?
-                Ok(_) => {}, // self.status = ExecutionStatus::Terminated,
+                // do nothing if we got nothing -- note that this decision is an important
+                // contributor towards program behavior
+                Ok(_) => {},
                 Err(e) => self.status = ExecutionStatus::InternalError(format!("{}", e).to_string()),
             };
         };
@@ -194,10 +195,8 @@ impl<'a> ExecutionContext<'a> {
     fn find_loop_end(ptr: usize, program: &[Token]) -> Result<usize, ()> {
         match program.get(ptr) {
             Some(Token::LoopEnd) => Ok(ptr),
-            Some(Token::LoopBeg) => {
-                ExecutionContext::find_loop_end(ptr + 1, program)
-                    .and_then(|i| ExecutionContext::find_loop_end(i + 1, program))
-            }
+            Some(Token::LoopBeg) => ExecutionContext::find_loop_end(ptr + 1, program)
+                .and_then(|i| ExecutionContext::find_loop_end(i + 1, program)),
             Some(_) => ExecutionContext::find_loop_end(ptr + 1, program),
             None => Err(()),
         }
@@ -209,9 +208,10 @@ impl<'a> ExecutionContext<'a> {
                 Ok(i) => self.program_ptr = i,
                 Err(_) => {
                     let e = format!(
-                        "'[' at program position {} missing corresponding ']'", self.program_ptr);
+                        "'[' at program position {} missing corresponding ']'", self.program_ptr
+                    );
                     self.status = ExecutionStatus::ProgramError(e.to_string());
-                }
+                },
             },
             _ => self.loop_stack.push(self.program_ptr),
         }
@@ -223,9 +223,10 @@ impl<'a> ExecutionContext<'a> {
             (Some(ptr_loc), _) => self.program_ptr = ptr_loc,
             (None, _) => {
                 let e = format!(
-                    "']' at program position {} missing corresponding '['", self.program_ptr);
-                self.status = ExecutionStatus::ProgramError(e.to_string())
-            }
+                    "']' at program position {} missing corresponding '['", self.program_ptr
+                );
+                self.status = ExecutionStatus::ProgramError(e.to_string());
+            },
         }
     }
 }
